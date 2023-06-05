@@ -1,20 +1,10 @@
 import torch
 from torch import nn, optim
+import itertools
 
-def calculate_total_probability_ordered(probabilities):
-    # Case 1: first two events are successful
-    p1 = probabilities[0] * probabilities[1]
+def linear_interpolation(value, input_min, input_max, output_range_min, output_range_max):
+    return output_range_min + (value - input_min) * ((output_range_max - output_range_min) / (input_max - input_min))
 
-    # Case 2: first and third events are successful, second event fails
-    p2 = probabilities[0] * (1 - probabilities[1]) * probabilities[2]
-
-    # Case 3: first event fails, second and third events are successful
-    p3 = (1 - probabilities[0]) * probabilities[1] * probabilities[2]
-
-    # Total probability is the sum of the individual probabilities
-    total_probability = p1 + p2 + p3
-
-    return total_probability
 
 class Net(nn.Module):
     def __init__(self):
@@ -39,3 +29,34 @@ class Fighter():
     def __init__(self, name, level):
         self.name = name
         self.level = level
+
+class Encounter_group():
+    def __init__(self, group, model, fighter_indices):
+        self.encounter_1 = group[0]
+        self.encounter_2 = group[1]
+        self.encounter_3 = group[2]
+
+        neural_input_1 = torch.tensor(
+            [list(fighter_indices).index(self.encounter_1[0].name), self.encounter_1[0].level / 30,
+             list(fighter_indices).index(self.encounter_1[1].name), self.encounter_1[1].level / 30])
+        self.encounter_1_win_chance = round(model(neural_input_1).item(), 3)
+
+        neural_input_2 = torch.tensor(
+            [list(fighter_indices).index(self.encounter_2[0].name), self.encounter_2[0].level / 30,
+             list(fighter_indices).index(self.encounter_2[1].name), self.encounter_2[1].level / 30])
+        self.encounter_2_win_chance = round(model(neural_input_2).item(), 3)
+
+        neural_input_3 = torch.tensor(
+            [list(fighter_indices).index(self.encounter_3[0].name), self.encounter_3[0].level / 30,
+             list(fighter_indices).index(self.encounter_3[1].name), self.encounter_3[1].level / 30])
+        self.encounter_3_win_chance = round(model(neural_input_3).item(), 3)
+
+        #TOTAL GROUP WIN CHANCE
+        prob_win_case1 = self.encounter_1_win_chance * self.encounter_2_win_chance
+        prob_win_case2 = (1 - self.encounter_1_win_chance) * self.encounter_2_win_chance * self.encounter_3_win_chance
+        prob_win_case3 = self.encounter_1_win_chance * (1 - self.encounter_2_win_chance) * self.encounter_3_win_chance
+        self.total_prob_win = prob_win_case1 + prob_win_case2 + prob_win_case3
+        self.total_prob_win = round(self.total_prob_win, 3)
+
+
+
