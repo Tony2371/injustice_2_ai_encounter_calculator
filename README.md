@@ -4,11 +4,10 @@ Done:
 - SQLite database
 - trained neural network
 - probability calculator
+- fighter_1 and fighter_2 should share same index list
 
 To do:
-- implement automatic HP bar parsing
-- fill column 'hp_left' in database to improve neural network prediction
-- add column 'hp_left' to training dataset
+- calculate Fighter_1 advantage instead of winning chance (Fighter_1_Health_Left - Fighter_2_Health_Left)
 - fix level_icon detection
 - dynamic switch of fighter_1 and fighter_2 columns for neural training
-- fighter_1 and fighter_2 should share same index list
+
