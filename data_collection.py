@@ -6,7 +6,8 @@ import cv2
 import time
 import sqlite3
 import hashlib
-from classes_and_functions import fighters_hash_pixels, template_matching
+from classes_and_functions import fighters_hash_pixels, template_matching, ModelHpTrack, flattened_masked_image
+import torch
 
 #GLOBAL VARIABLES
 folder_name = 'encounter_temp'
@@ -15,8 +16,13 @@ conn = sqlite3.connect('injustice_2.db')
 cursor = conn.cursor()
 
 recording = False
-temp_enemy_character_track = []
-temp_enemy_ai_stats_track = []
+ai_stats_dict = {}
+match_image_dict = {}
+
+hp_mask = cv2.imread('images/left_hp_mask.png', 0)
+nn_hp_track = ModelHpTrack()
+nn_hp_track.load_state_dict(torch.load('nn_weights/weights_hp_track.pth'))
+nn_hp_track.eval()
 
 while True:
     keyboard.on_press_key('p',
@@ -47,8 +53,7 @@ while True:
             hash_current = hashlib.sha256(fighter_name_zone.tobytes()).hexdigest()
             for character, hash_value in fighters_hash_pixels.items():
                 if hash_value == hash_current:
-                    if character not in temp_enemy_character_track:
-                        temp_enemy_character_track.append(character)
+                    if character not in ai_stats_dict.keys():
 
                         zone_grappling = screen_image[201:218, 1410:1432]
                         zone_rushdown = screen_image[245:262, 1410:1432]
@@ -63,31 +68,57 @@ while True:
                         zoning = template_matching(zone_zoning, 'at_stats_level_icons')
                         runaway = template_matching(zone_runaway, 'at_stats_level_icons')
 
-                        temp_enemy_ai_stats_track.append([grappling, rushdown, combos, counters, zoning, runaway])
+                        ai_stats_dict[character] = str([grappling, rushdown, combos, counters, zoning, runaway]).replace(' ', '').replace("'", "")
+                        print(ai_stats_dict)
 
 
-        print(temp_enemy_character_track)
-        print(temp_enemy_ai_stats_track)
-
-
+        # MATCH END CONDITION
         mask_1 = cv2.inRange(zone_hp_1, lowerb=(0, 240, 248), upperb=(255, 242, 250))
         mask_2 = cv2.inRange(zone_hp_2, lowerb=(0, 240, 248), upperb=(255, 242, 250))
 
-        mask_end_1 = cv2.inRange(zone_end_match_1, lowerb=(82, 64, 49), upperb=(84, 66, 51))
-        mask_end_2 = cv2.inRange(zone_end_match_2, lowerb=(82, 64, 49), upperb=(84, 66, 51))
+        # Fighter_1 looses
+        if cv2.countNonZero(mask_1) >= 50:
+            match_image_dict[int(time.time())] = screen_image
+            zone_hp_left = screen_image[9:81, 71:917]
+            masked_hp_left = cv2.bitwise_and(zone_hp_left, zone_hp_left, mask=hp_mask)
+            image_left = torch.tensor(
+                flattened_masked_image(image=masked_hp_left, mask_path='images/left_hp_mask.png')).unsqueeze(0)
+            hp_left = nn_hp_track(image_left).item()
 
-        if cv2.countNonZero(mask_1) >= 50 or cv2.countNonZero(mask_2) >= 50:
-            cv2.imwrite(folder_name+f'/{str(time.time()).replace(".","_")}.png', screen_image)
+            cv2.imwrite(folder_name + f'/{str(time.time()).replace(".", "_")}.png', screen_image)
+
             print(f'Recorded {int(time.time())}')
+            print(f'Fighter_1 lost! Fighter_1 health: {hp_left}')
             time.sleep(0.5)
 
+        # Fighter_2 looses
+        if cv2.countNonZero(mask_2) >= 50:
+            match_image_dict[int(time.time())] = screen_image
+            zone_hp_right = screen_image[9:81, 999:1845]
+            zone_hp_right = cv2.flip(zone_hp_right, 1)
+            masked_hp_right = cv2.bitwise_and(zone_hp_right, zone_hp_right, mask=hp_mask)
+            image_right = torch.tensor(
+                flattened_masked_image(image=masked_hp_right, mask_path='images/left_hp_mask.png')).unsqueeze(0)
+            hp_right = nn_hp_track(image_right).item()
+
+            cv2.imwrite(folder_name+f'/{str(time.time()).replace(".","_")}.png', screen_image)
+
+            print(f'Recorded {int(time.time())}')
+            print(f'Fighter_2 lost! Fighter_1 health: {hp_right}')
+            time.sleep(0.5)
+
+        # ENCOUNTER END CONDITION
+        mask_end_1 = cv2.inRange(zone_end_match_1, lowerb=(82, 64, 49), upperb=(84, 66, 51))
+        mask_end_2 = cv2.inRange(zone_end_match_2, lowerb=(82, 64, 49), upperb=(84, 66, 51))
         if cv2.countNonZero(mask_end_1) >= 0.95*zone_end_match_1.shape[0]*zone_end_match_1.shape[1] and cv2.countNonZero(mask_end_2) >= 0.95*zone_end_match_2.shape[0]*zone_end_match_2.shape[1]:
-            cv2.imwrite(folder_name+f'/{str(time.time()).replace(".", "_")}.png', screen_image)
+            match_image_dict[int(time.time())] = screen_image
+            #cv2.imwrite(folder_name+f'/{str(time.time()).replace(".", "_")}.png', screen_image)
+            for fighter_2 in ai_stats_dict.keys():
+                cursor.execute('INSERT INTO ai_battle_log_advanced (fighter_2_name, fighter_2_ai) VALUES (?, ?)', (fighter_2, ai_stats_dict[fighter_2]))
+                'Database record saved!'
+                print('Database record added')
 
-            for fighter_2, fighter_2_ai in zip(temp_enemy_character_track, temp_enemy_ai_stats_track):
-                cursor.execute('INSERT INTO ai_battle_log_advanced (fighter_2_name, fighter_2_ai) VALUES (?, ?)', (fighter_2, str(fighter_2_ai).replace(' ', '')))
             conn.commit()
-
 
             collected_images = [image for image in glob.glob(folder_name+'/*.png')]
             if len(collected_images) == 3:
@@ -105,13 +136,12 @@ while True:
 
             cv2.imwrite(folder_name + '/stacked.png', vertically_stacked)
 
-            recording = False
-            conn.close()
+            #PARSING ENDING
             time.sleep(5)
 
     if not recording:
         print('Stopped')
-        temp_enemy_character_track = []
-        temp_enemy_ai_stats_track = []
+        ai_stats_dict = {}
+        match_image_dict = {}
         time.sleep(1)
 
