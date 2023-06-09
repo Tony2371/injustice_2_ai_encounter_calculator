@@ -1,6 +1,7 @@
 import torch
 from torch import nn, optim
 import torch.nn.functional as F
+import numpy as np
 import itertools
 import glob
 import cv2
@@ -52,17 +53,33 @@ fighters_hash_pixels = {
 def linear_interpolation(value, input_min, input_max, output_range_min, output_range_max):
     return output_range_min + (value - input_min) * ((output_range_max - output_range_min) / (input_max - input_min))
 
-def template_matching(image_input, template_folder):
+def similarity(image_1, image_2):
+    image_1 = cv2.cvtColor(image_1, cv2.COLOR_BGR2GRAY)
+    image_2 = cv2.cvtColor(image_2, cv2.COLOR_BGR2GRAY)
+    similarity = ssim(image_1, image_2)
+    return similarity
+
+
+def template_matching(image_input, template_folder, resize=None):
     probability = 0
     image_main = cv2.cvtColor(image_input, cv2.COLOR_BGR2GRAY)
     for f in glob.glob(f'{template_folder}/*.png'):
-        stat_lvl_template = cv2.imread(f, cv2.IMREAD_GRAYSCALE)
-        similarity = ssim(image_main, stat_lvl_template)
+        template = cv2.imread(f, cv2.IMREAD_GRAYSCALE)
+        if resize != None:
+            template = cv2.resize(template, resize, interpolation=cv2.INTER_LINEAR)
+        similarity = ssim(image_main, template)
         if similarity > probability:
             probability = similarity
             matched_output = f[len(template_folder)+1:].replace('.png', '')
-    return int(matched_output)
+    return matched_output
 
+def flattened_masked_image(image, mask_path):
+    pixel_indices = np.nonzero(cv2.imread(mask_path, 0).flatten())[0]
+    blue_channel = image[:, :, 0].flatten()[pixel_indices]
+    green_channel = image[:, :, 1].flatten()[pixel_indices]
+    red_channel = image[:, :, 2].flatten()[pixel_indices]
+    normalized_image = np.concatenate((blue_channel / 255, green_channel / 255, red_channel / 255))
+    return normalized_image
 
 class Net(nn.Module):
     def __init__(self):
@@ -80,19 +97,16 @@ class ModelHpTrack(nn.Module):
     def __init__(self):
         super(ModelHpTrack, self).__init__()
         # Input size: [batch_size, 3, 846, 72]
-        self.conv1 = nn.Conv2d(3, 6, 5)  # Output size: [batch_size, 6, 842, 68]
-        self.pool = nn.MaxPool2d(2, 2)  # Output size: [batch_size, 6, 421, 34]
 
         # Fully connected layers
-        self.fc1 = nn.Linear(6 * 421 * 34, 256)  # Flatten size = 6 * 421 * 34
-        self.fc2 = nn.Linear(256, 256)
+        self.fc1 = nn.Linear(21966, 512)
+        self.fc2 = nn.Linear(512, 256)
         self.fc3 = nn.Linear(256, 1)  # 1 output for regression problem
 
     def forward(self, x):
-        x = self.pool(F.tanh(self.conv1(x)))
-        x = x.view(-1, 6 * 421 * 34)  # Flatten the tensor
-        x = F.tanh(self.fc1(x))  # Apply fc1 -> ReLU
-        x = F.tanh(self.fc2(x))  # Apply fc2 -> ReLU
+        x = x.float()
+        x = F.tanh(self.fc1(x))
+        x = F.tanh(self.fc2(x))
         x = self.fc3(x)  # Apply fc3
         return x
 
@@ -104,9 +118,12 @@ class Row():
         self.index = index
 
 class Fighter():
-    def __init__(self, name, level):
+    def __init__(self, name, level, ai_primary=None, ai_secondary=None):
         self.name = name
         self.level = level
+        self.ai_primary = ai_primary
+        self.ai_secondary = ai_secondary
+        self.selected_ai = 'primary'
 
 class Encounter_group():
     def __init__(self, group, model, fighter_indices):
