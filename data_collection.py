@@ -99,10 +99,10 @@ while True:
                 enemy_recognition_2 = nn_fighter_recognition(torch.tensor(zone_opponent_2 / 255))
                 enemy_recognition_3 = nn_fighter_recognition(torch.tensor(zone_opponent_3 / 255))
 
-                enemy_selected_fighters = [fighter_indices(fighter_index=torch.argmax(enemy_recognition_1).item()),
-                                           fighter_indices(fighter_index=torch.argmax(enemy_recognition_2).item()),
-                                           fighter_indices(fighter_index=torch.argmax(enemy_recognition_3).item())]
-                print(enemy_selected_fighters)
+                enemy_selected_fighters = [Fighter(name=fighter_indices(fighter_index=torch.argmax(enemy_recognition_1).item()), level=1),
+                                            Fighter(name=fighter_indices(fighter_index=torch.argmax(enemy_recognition_2).item()), level=1),
+                                            Fighter(name=fighter_indices(fighter_index=torch.argmax(enemy_recognition_3).item()), level=1)]
+
 
         zone_ai_parsing_icon = screen_image[140:170, 1870:1905]
         mask_zone_ai_parsing = cv2.inRange(zone_ai_parsing_icon, lowerb=(174, 172, 158), upperb=(174, 172, 158))
@@ -113,27 +113,28 @@ while True:
             hash_current = hashlib.sha256(fighter_name_zone.tobytes()).hexdigest()
             for character, hash_value in fighters_hash_pixels.items():
                 if hash_value == hash_current:
-                    if character not in enemy_ai_stats_dict.keys():
+                    #if character not in enemy_ai_stats_dict.keys():
+                    for fighter in enemy_selected_fighters:
+                        if fighter.name == character:
+                            zone_grappling = screen_image[201:218, 1410:1432]
+                            zone_rushdown = screen_image[245:262, 1410:1432]
+                            zone_combos = screen_image[291:308, 1410:1432]
+                            zone_counters = screen_image[336:353, 1410:1432]
+                            zone_zoning = screen_image[381:398, 1410:1432]
+                            zone_runaway = screen_image[426:443, 1410:1432]
+                            grappling = template_matching(zone_grappling, 'at_stats_level_icons')[0]
+                            rushdown = template_matching(zone_rushdown, 'at_stats_level_icons')[0]
+                            combos = template_matching(zone_combos, 'at_stats_level_icons')[0]
+                            counters = template_matching(zone_counters, 'at_stats_level_icons')[0]
+                            zoning = template_matching(zone_zoning, 'at_stats_level_icons')[0]
+                            runaway = template_matching(zone_runaway, 'at_stats_level_icons')[0]
 
-                        zone_grappling = screen_image[201:218, 1410:1432]
-                        zone_rushdown = screen_image[245:262, 1410:1432]
-                        zone_combos = screen_image[291:308, 1410:1432]
-                        zone_counters = screen_image[336:353, 1410:1432]
-                        zone_zoning = screen_image[381:398, 1410:1432]
-                        zone_runaway = screen_image[426:443, 1410:1432]
-                        grappling = template_matching(zone_grappling, 'at_stats_level_icons')
-                        rushdown = template_matching(zone_rushdown, 'at_stats_level_icons')
-                        combos = template_matching(zone_combos, 'at_stats_level_icons')
-                        counters = template_matching(zone_counters, 'at_stats_level_icons')
-                        zoning = template_matching(zone_zoning, 'at_stats_level_icons')
-                        runaway = template_matching(zone_runaway, 'at_stats_level_icons')
+                            fighter.ai_primary = str([grappling, rushdown, combos, counters, zoning, runaway]).replace(' ', '').replace("'", "")
 
-                        enemy_ai_stats_dict[character] = str([grappling, rushdown, combos, counters, zoning, runaway]).replace(' ', '').replace("'", "")
-                        print(enemy_ai_stats_dict)
+
 
         # PLAYER AI STATS PARSING ZONE
         if similarity(screen_image[55:75, 110:370], template_player_hero_selection) >= 0.85:
-
             for fighter in player_fighters:
                 if fighter.name == template_matching(screen_image[0:44, 0:300], 'player_fighter_names')[0]:
                     current_selected_fighter = fighter.name
@@ -216,9 +217,14 @@ while True:
         if cv2.countNonZero(mask_end_1) >= 0.95*zone_end_match_1.shape[0]*zone_end_match_1.shape[1] and cv2.countNonZero(mask_end_2) >= 0.95*zone_end_match_2.shape[0]*zone_end_match_2.shape[1]:
             match_image_dict[int(time.time())] = screen_image
             #cv2.imwrite(folder_name+f'/{str(time.time()).replace(".", "_")}.png', screen_image)
-            for fighter_2 in enemy_ai_stats_dict.keys():
-                cursor.execute('INSERT INTO ai_battle_log_advanced (fighter_2_name, fighter_2_ai) VALUES (?, ?)', (fighter_2, enemy_ai_stats_dict[fighter_2]))
-                'Database record saved!'
+            for fighter_1, fighter_2 in zip(player_selected_fighters, enemy_selected_fighters):
+                choose_ai = lambda f: f.ai_primary if f.selected_ai == 'primary' else f.ai_secondary
+                cursor.execute('INSERT INTO ai_battle_log_advanced (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_ai, fighter_2_ai) VALUES (?, ?, ?, ?, ?, ?)', (fighter_1.name,
+                                                                                                                                                                                               fighter_2.name,
+                                                                                                                                                                                               fighter_1.level,
+                                                                                                                                                                                               fighter_2.level,
+                                                                                                                                                                                               choose_ai(fighter_1),
+                                                                                                                                                                                               fighter_2.ai_primary))
                 print('Database record added')
 
             conn.commit()
