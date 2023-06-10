@@ -6,7 +6,7 @@ import cv2
 import time
 import sqlite3
 import hashlib
-from classes_and_functions import Fighter, fighters_hash_pixels, template_matching, ModelHpTrack, flattened_masked_image, similarity
+from classes_and_functions import Fighter, fighters_hash_pixels, template_matching, ModelHpTrack, ModelFighterRecognition, flattened_masked_image, similarity, fighter_indices
 import torch
 
 #GLOBAL VARIABLES
@@ -18,12 +18,16 @@ cursor = conn.cursor()
 recording = False
 enemy_ai_stats_dict = {}
 match_image_dict = {}
-player_selected_fighters = []
+player_selected_fighters = [None, None, None]
 
 hp_mask = cv2.imread('images/left_hp_mask.png', 0)
 nn_hp_track = ModelHpTrack()
-nn_hp_track.load_state_dict(torch.load('nn_weights/weights_hp_track.pth'))
+#nn_hp_track.load_state_dict(torch.load('nn_weights/weights_hp_track.pth'))
 nn_hp_track.eval()
+
+nn_fighter_recognition = ModelFighterRecognition()
+nn_fighter_recognition.load_state_dict(torch.load('nn_weights/weights_fighter_recognition.pth'))
+nn_fighter_recognition.eval()
 
 template_player_hero_selection = cv2.imread('images/template_player_hero_selection.png')
 template_ai_primary = cv2.imread('images/template_primary.png')
@@ -112,7 +116,7 @@ while True:
         # PLAYER AI STATS PARSING ZONE
         if similarity(screen_image[55:75, 110:370], template_player_hero_selection) >= 0.85:
             for fighter in player_fighters:
-                if fighter.name == template_matching(screen_image[0:44, 0:300], 'player_fighter_names'):
+                if fighter.name == template_matching(screen_image[0:44, 0:300], 'player_fighter_names')[0]:
                     current_selected_fighter = fighter.name
             if similarity(screen_image[148:173, 78:250], template_ai_secondary) >= 0.85:
                 for f in player_fighters:
@@ -123,7 +127,30 @@ while True:
                     if f.name == current_selected_fighter:
                         f.selected_ai = 'primary'
 
-            print([[a.name, a.selected_ai] for a in player_fighters])
+            #print([[a.name, a.selected_ai] for a in player_fighters])
+            zone_player_1 = screen_image[311:311+80, 116:116+80]
+            zone_player_2 = screen_image[311:311+80, 287:287+80]
+            zone_player_3 = screen_image[311:311+80, 448:448+80]
+
+            player_recognition_1 = nn_fighter_recognition(torch.tensor(zone_player_1 / 255))
+            player_recognition_2 = nn_fighter_recognition(torch.tensor(zone_player_2 / 255))
+            player_recognition_3 = nn_fighter_recognition(torch.tensor(zone_player_3 / 255))
+
+            if torch.max(player_recognition_1).item() > 3:
+                selection_1 = fighter_indices(fighter_index=torch.argmax(player_recognition_1).item())
+                if selection_1 != 'not_selected' and len([f for f in player_fighters if f.name == selection_1]) > 0:
+                    player_selected_fighters[0] = [f for f in player_fighters if f.name == selection_1][0]
+            if torch.max(player_recognition_2).item() > 3:
+                selection_2 = fighter_indices(fighter_index=torch.argmax(player_recognition_2).item())
+                if selection_2 != 'not_selected' and len([f for f in player_fighters if f.name == selection_2]) > 0:
+                    player_selected_fighters[1] = [f for f in player_fighters if f.name == selection_2][0]
+            if torch.max(player_recognition_3).item() > 3:
+                selection_3 = fighter_indices(fighter_index=torch.argmax(player_recognition_3).item())
+                if selection_3 != 'not_selected' and len([f for f in player_fighters if f.name == selection_3]) > 0:
+                    player_selected_fighters[2] = [f for f in player_fighters if f.name == selection_3][0]
+
+            if None not in player_selected_fighters:
+                print([(f.name, f.selected_ai) for f in player_selected_fighters])
 
 
 
