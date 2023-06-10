@@ -19,6 +19,7 @@ recording = False
 enemy_ai_stats_dict = {}
 match_image_dict = {}
 player_selected_fighters = [None, None, None]
+enemy_selected_fighters = [None, None, None]
 
 hp_mask = cv2.imread('images/left_hp_mask.png', 0)
 nn_hp_track = ModelHpTrack()
@@ -33,6 +34,7 @@ template_player_hero_selection = cv2.imread('images/template_player_hero_selecti
 template_ai_primary = cv2.imread('images/template_primary.png')
 template_ai_secondary = cv2.imread('images/template_secondary.png')
 template_player_fighter_selection = cv2.imread('images/template_player_fighter_selection.png')
+template_defending_team = cv2.imread('images/defending_team.png')
 
 
 player_fighter_1 = Fighter(name='catwoman',
@@ -86,11 +88,27 @@ while True:
         zone_end_match_1 = screen_image[770:805, 572:632]
         zone_end_match_2 = screen_image[770:805, 1286:1351]
 
-        # ENEMY AI STATS PARSING ZONE
+        # OPPONENT AI STATS PARSING ZONE
+        if None in enemy_selected_fighters:
+            if similarity(template_defending_team, screen_image[597:626, 1713:1901]) > 0.85:
+                zone_opponent_1 = screen_image[291:291 + 80, 1425:1425 + 80]
+                zone_opponent_2 = screen_image[291:291 + 80, 1593:1593 + 80]
+                zone_opponent_3 = screen_image[291:291 + 80, 1758:1758 + 80]
+
+                enemy_recognition_1 = nn_fighter_recognition(torch.tensor(zone_opponent_1 / 255))
+                enemy_recognition_2 = nn_fighter_recognition(torch.tensor(zone_opponent_2 / 255))
+                enemy_recognition_3 = nn_fighter_recognition(torch.tensor(zone_opponent_3 / 255))
+
+                enemy_selected_fighters = [fighter_indices(fighter_index=torch.argmax(enemy_recognition_1).item()),
+                                           fighter_indices(fighter_index=torch.argmax(enemy_recognition_2).item()),
+                                           fighter_indices(fighter_index=torch.argmax(enemy_recognition_3).item())]
+                print(enemy_selected_fighters)
+
         zone_ai_parsing_icon = screen_image[140:170, 1870:1905]
         mask_zone_ai_parsing = cv2.inRange(zone_ai_parsing_icon, lowerb=(174, 172, 158), upperb=(174, 172, 158))
 
         if cv2.countNonZero(mask_zone_ai_parsing) == 94:
+
             fighter_name_zone = screen_image[146:172, 1620:1820]
             hash_current = hashlib.sha256(fighter_name_zone.tobytes()).hexdigest()
             for character, hash_value in fighters_hash_pixels.items():
@@ -115,6 +133,7 @@ while True:
 
         # PLAYER AI STATS PARSING ZONE
         if similarity(screen_image[55:75, 110:370], template_player_hero_selection) >= 0.85:
+
             for fighter in player_fighters:
                 if fighter.name == template_matching(screen_image[0:44, 0:300], 'player_fighter_names')[0]:
                     current_selected_fighter = fighter.name
@@ -229,5 +248,7 @@ while True:
         print('Stopped')
         enemy_ai_stats_dict = {}
         match_image_dict = {}
+        player_selected_fighters = [None, None, None]
+        enemy_selected_fighters = [None, None, None]
         time.sleep(1)
 
