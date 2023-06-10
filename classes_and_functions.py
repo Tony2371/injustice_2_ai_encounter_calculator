@@ -49,6 +49,54 @@ fighters_hash_pixels = {
     'wonder_woman': '385683730cfe3b7f50005d14ba1ff03d68f61dfd10d39f4fb38c7cf34a58d24e',
 }
 
+def fighter_indices(fighter_name=None, fighter_index=None):
+    fighter_indices = {
+        'aquaman': 0,
+        'atom': 1,
+        'atrocitus': 2,
+        'bane': 3,
+        'batman': 4,
+        'black_adam': 5,
+        'black_canary': 6,
+        'black_manta': 7,
+        'blue_beetle': 8,
+        'brainiac': 9,
+        'captain_cold': 10,
+        'catwoman': 11,
+        'cheetah': 12,
+        'cyborg': 13,
+        'darkseid': 14,
+        'deadshot': 15,
+        'doctor_fate': 16,
+        'enchantress': 17,
+        'firestorm': 18,
+        'flash': 19,
+        'gorilla_grodd': 20,
+        'green_arrow': 21,
+        'green_lantern': 22,
+        'harley_quinn': 23,
+        'hellboy': 24,
+        'joker': 25,
+        'poison_ivy': 26,
+        'raiden': 27,
+        'red_hood': 28,
+        'robin': 29,
+        'scarecrow': 30,
+        'starfire': 31,
+        'subzero': 32,
+        'supergirl': 33,
+        'superman': 34,
+        'swamp_thing': 35,
+        'tmnt': 36,
+        'wonder_woman': 37,
+        'not_selected': 38
+    }
+    if fighter_index is None:
+        return fighter_indices[fighter_name]
+    if fighter_name is None:
+        for name, i in fighter_indices.items():
+            if i == fighter_index:
+                return name
 
 def linear_interpolation(value, input_min, input_max, output_range_min, output_range_max):
     return output_range_min + (value - input_min) * ((output_range_max - output_range_min) / (input_max - input_min))
@@ -71,7 +119,7 @@ def template_matching(image_input, template_folder, resize=None):
         if similarity > probability:
             probability = similarity
             matched_output = f[len(template_folder)+1:].replace('.png', '')
-    return matched_output
+    return matched_output, similarity
 
 def flattened_masked_image(image, mask_path):
     pixel_indices = np.nonzero(cv2.imread(mask_path, 0).flatten())[0]
@@ -96,12 +144,10 @@ class Net(nn.Module):
 class ModelHpTrack(nn.Module):
     def __init__(self):
         super(ModelHpTrack, self).__init__()
-        # Input size: [batch_size, 3, 846, 72]
 
-        # Fully connected layers
-        self.fc1 = nn.Linear(21966, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 1)  # 1 output for regression problem
+        self.fc1 = nn.Linear(21966, 768)
+        self.fc2 = nn.Linear(768, 512)
+        self.fc3 = nn.Linear(512, 1)  # 1 output for regression problem
 
     def forward(self, x):
         x = x.float()
@@ -109,6 +155,25 @@ class ModelHpTrack(nn.Module):
         x = F.tanh(self.fc2(x))
         x = self.fc3(x)  # Apply fc3
         return x
+
+class ModelFighterRecognition(nn.Module):
+    def __init__(self):
+        super(ModelFighterRecognition, self).__init__()
+
+        # Fully connected layers
+        self.fc1 = nn.Linear(19200, 512) #19200 IS 80x80 images with 3 channels
+        self.fc2 = nn.Linear(512, 512)
+        self.fc3 = nn.Linear(512, 39)  # 1 output for regression problem
+
+    def forward(self, x):
+        #x = x.view(x.size(0), -1)
+        x = x.flatten()
+        x = x.float()
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)  # Apply fc3
+        return x
+
 
 class Row():
     def __init__(self, image, index):
