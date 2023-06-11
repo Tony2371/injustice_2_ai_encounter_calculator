@@ -16,6 +16,7 @@ conn = sqlite3.connect('injustice_2.db')
 cursor = conn.cursor()
 
 recording = False
+printed = False
 match_image_dict = {}
 player_selected_fighters = [None, None, None]
 enemy_selected_fighters = [None, None, None]
@@ -48,7 +49,7 @@ player_fighter_1 = Fighter(name='catwoman',
                            attributes='[3169,2364,2027,2098]')
 
 player_fighter_2 = Fighter(name='black_canary',
-                           level=26,
+                           level=27,
                            ai_primary='[0,5,30,25,0,0]',
                            ai_secondary='[10,10,20,20,0,0]',
                            attributes='[1940,2635,1947,1662]')
@@ -66,10 +67,10 @@ player_fighter_4 = Fighter(name='wonder_woman',
                            attributes='[1620,1535,1463,1118]')
 
 player_fighter_5 = Fighter(name='enchantress',
-                           level=10,
+                           level=11,
                            ai_primary='[0,13,30,17,0,0]',
                            ai_secondary='[0,0,28,0,25,7]',
-                           attributes='[1395,1548,1294,1088]')
+                           attributes='[1422,1575,1316,1095]')
 
 player_fighters = [player_fighter_1, player_fighter_2, player_fighter_3, player_fighter_4, player_fighter_5]
 
@@ -100,17 +101,66 @@ while True:
         # OPPONENT AI STATS PARSING ZONE
         if None in enemy_selected_fighters:
             if similarity(template_defending_team, screen_image[597:626, 1713:1901]) > 0.85:
+                time.sleep(0.7)
                 zone_opponent_1 = screen_image[291:291 + 80, 1425:1425 + 80]
                 zone_opponent_2 = screen_image[291:291 + 80, 1593:1593 + 80]
                 zone_opponent_3 = screen_image[291:291 + 80, 1758:1758 + 80]
 
-                enemy_recognition_1 = nn_fighter_recognition(torch.tensor(zone_opponent_1 / 255))
-                enemy_recognition_2 = nn_fighter_recognition(torch.tensor(zone_opponent_2 / 255))
-                enemy_recognition_3 = nn_fighter_recognition(torch.tensor(zone_opponent_3 / 255))
+                opponent_recognition_1 = nn_fighter_recognition(torch.tensor(zone_opponent_1 / 255))
+                opponent_recognition_2 = nn_fighter_recognition(torch.tensor(zone_opponent_2 / 255))
+                opponent_recognition_3 = nn_fighter_recognition(torch.tensor(zone_opponent_3 / 255))
 
-                enemy_selected_fighters = [Fighter(name=fighter_indices(fighter_index=torch.argmax(enemy_recognition_1).item()), level=1),
-                                            Fighter(name=fighter_indices(fighter_index=torch.argmax(enemy_recognition_2).item()), level=1),
-                                            Fighter(name=fighter_indices(fighter_index=torch.argmax(enemy_recognition_3).item()), level=1)]
+                enemy_selected_fighters = [Fighter(name=fighter_indices(fighter_index=torch.argmax(opponent_recognition_1).item()), level=1),
+                                            Fighter(name=fighter_indices(fighter_index=torch.argmax(opponent_recognition_2).item()), level=1),
+                                            Fighter(name=fighter_indices(fighter_index=torch.argmax(opponent_recognition_3).item()), level=1)]
+
+                zone_opponent_1_level_1 = screen_image[513:535, 1407:1421]
+                zone_opponent_1_level_2 = screen_image[513:535, 1420:1434]
+                opponent_1_level_recognition_1 = nn_digit_recognition(torch.tensor(zone_opponent_1_level_1/255).unsqueeze(0))
+                opponent_1_level_recognition_2 = nn_digit_recognition(torch.tensor(zone_opponent_1_level_2/255).unsqueeze(0))
+
+                zone_opponent_2_level_1 = screen_image[513:535, 1574:1588]
+                zone_opponent_2_level_2 = screen_image[513:535, 1587:1601]
+                opponent_2_level_recognition_1 = nn_digit_recognition(
+                    torch.tensor(zone_opponent_2_level_1 / 255).unsqueeze(0))
+                opponent_2_level_recognition_2 = nn_digit_recognition(
+                    torch.tensor(zone_opponent_2_level_2 / 255).unsqueeze(0))
+
+                zone_opponent_3_level_1 = screen_image[513:535, 1739:1753]
+                zone_opponent_3_level_2 = screen_image[513:535, 1752:1766]
+                opponent_3_level_recognition_1 = nn_digit_recognition(
+                    torch.tensor(zone_opponent_3_level_1 / 255).unsqueeze(0))
+                opponent_3_level_recognition_2 = nn_digit_recognition(
+                    torch.tensor(zone_opponent_3_level_2 / 255).unsqueeze(0))
+
+
+                if torch.max(opponent_1_level_recognition_2).item() < 6:
+                    enemy_selected_fighters[0].level = torch.argmax(opponent_1_level_recognition_1).item()
+                else:
+                    enemy_selected_fighters[0].level = int(str(torch.argmax(opponent_1_level_recognition_1).item())+str(torch.argmax(opponent_1_level_recognition_2).item()))
+
+                if torch.max(opponent_2_level_recognition_2).item() < 6:
+                    enemy_selected_fighters[1].level = torch.argmax(opponent_2_level_recognition_1).item()
+                else:
+                    enemy_selected_fighters[1].level = int(str(torch.argmax(opponent_2_level_recognition_1).item())+str(torch.argmax(opponent_2_level_recognition_2).item()))
+
+                if torch.max(opponent_3_level_recognition_2).item() < 6:
+                    enemy_selected_fighters[2].level = torch.argmax(opponent_3_level_recognition_1).item()
+                else:
+                    enemy_selected_fighters[2].level = int(str(torch.argmax(opponent_3_level_recognition_1).item())+str(torch.argmax(opponent_3_level_recognition_2).item()))
+
+
+                '''
+                cv2.imwrite(f'digits_dataset/Z1{str(time.time()).split(".")[1]}.png', zone_opponent_1_level_1)
+                cv2.imwrite(f'digits_dataset/Z2{str(time.time()).split(".")[1]}.png', zone_opponent_1_level_2)
+                cv2.imwrite(f'digits_dataset/Z3{str(time.time()).split(".")[1]}.png', zone_opponent_2_level_1)
+                cv2.imwrite(f'digits_dataset/Z4{str(time.time()).split(".")[1]}.png', zone_opponent_2_level_2)
+                cv2.imwrite(f'digits_dataset/Z5{str(time.time()).split(".")[1]}.png', zone_opponent_2_level_1)
+                cv2.imwrite(f'digits_dataset/Z6{str(time.time()).split(".")[1]}.png', zone_opponent_2_level_2)
+                '''
+
+
+                print([f.level for f in enemy_selected_fighters])
 
 
         zone_ai_parsing_icon = screen_image[140:170, 1870:1905]
@@ -248,6 +298,8 @@ while True:
                             str_recognition_4 = nn_digit_recognition(
                                 torch.tensor(cv2.resize(screen_image[81:107, 1674:1690], (14, 22))).unsqueeze(0))
 
+
+
                             strength = str(torch.argmax(str_recognition_1).item())+\
                             str(torch.argmax(str_recognition_2).item())+\
                             str(torch.argmax(str_recognition_3).item())+\
@@ -298,6 +350,7 @@ while True:
                                       str(torch.argmax(hp_recognition_3).item()) + \
                                       str(torch.argmax(hp_recognition_4).item())
 
+                            # cv2.imwrite('extra_digit.png', cv2.resize(screen_image[81:107, 1630:1646], (14, 22)))
                             '''
                             cv2.imwrite(f'digits_dataset/w_{int(time.time())}.png',
                                         cv2.resize(screen_image[81:107, 1841:1857], (14, 22)))
@@ -311,9 +364,9 @@ while True:
                             '''
 
                             fighter.attributes = f'[{strength},{ability},{defense},{health_points}]'
-                            print(fighter.attributes)
 
-                            # PLAYER AI STATS PARSING ZONE
+
+        # PLAYER AI STATS PARSING ZONE
         if similarity(screen_image[55:75, 110:370], template_player_hero_selection) >= 0.85:
             for fighter in player_fighters:
                 if fighter.name == template_matching(screen_image[0:44, 0:300], 'player_fighter_names')[0]:
@@ -349,46 +402,53 @@ while True:
                 if selection_3 != 'not_selected' and len([f for f in player_fighters if f.name == selection_3]) > 0:
                     player_selected_fighters[2] = [f for f in player_fighters if f.name == selection_3][0]
 
-            if None not in player_selected_fighters:
-                print([(f.name, f.selected_ai) for f in player_selected_fighters])
+
+        '''
+        for f in player_selected_fighters:
+            try:
+                print(f.name)
+            except:
+                print(0)
+        print('-'*5)
+        '''
+        if None not in enemy_selected_fighters and not printed and None not in player_selected_fighters:
+            print('PLAYER:')
+            for f in player_selected_fighters:
+                print(f.name, f.level)
+                print(f.selected_ai)
+                print('-')
+            print('*'*5)
+            print('ENEMY:')
+            for f in enemy_selected_fighters:
+                print(f.name, f.level)
+                print(f.ai_primary)
+                print(f.attributes)
+                print('-')
+            print('#'*30)
+            printed = True
+        else:
+            print(player_selected_fighters)
+            printed = True
 
 
-
-        # MATCH END CONDITION
+        # ROUND END CONDITION
         mask_1 = cv2.inRange(zone_hp_1, lowerb=(0, 240, 248), upperb=(255, 242, 250))
         mask_2 = cv2.inRange(zone_hp_2, lowerb=(0, 240, 248), upperb=(255, 242, 250))
 
         # Fighter_1 looses
         if cv2.countNonZero(mask_1) >= 50:
-            match_image_dict[int(time.time())] = screen_image
-            zone_hp_right = screen_image[9:81, 999:1845]
-            zone_hp_right = cv2.flip(zone_hp_right, 1)
-            masked_hp_right = cv2.bitwise_and(zone_hp_right, zone_hp_right, mask=hp_mask)
-            cv2.imwrite(f'debug_right.png', masked_hp_right)
-            image_right = torch.tensor(
-                flattened_masked_image(image=masked_hp_right, mask_path='images/left_hp_mask.png')).unsqueeze(0)
-            hp_right = nn_hp_track(image_right).item()
 
             cv2.imwrite(folder_name + f'/{str(time.time()).replace(".", "_")}.png', screen_image)
 
             print(f'Recorded {int(time.time())}')
-            print(f'Fighter_1 lost! Fighter_2 health: {hp_right}')
             time.sleep(0.5)
 
         # Fighter_2 looses
         if cv2.countNonZero(mask_2) >= 50:
-            match_image_dict[int(time.time())] = screen_image
-            zone_hp_left = screen_image[9:81, 71:917]
-            masked_hp_left = cv2.bitwise_and(zone_hp_left, zone_hp_left, mask=hp_mask)
-            cv2.imwrite(f'debug_left.png', masked_hp_left)
-            image_left = torch.tensor(
-                flattened_masked_image(image=masked_hp_left, mask_path='images/left_hp_mask.png')).unsqueeze(0)
-            hp_left = nn_hp_track(image_left).item()
 
             cv2.imwrite(folder_name+f'/{str(time.time()).replace(".","_")}.png', screen_image)
 
             print(f'Recorded {int(time.time())}')
-            print(f'Fighter_2 lost! Fighter_1 health: {hp_left}')
             time.sleep(0.5)
 
         # ENCOUNTER END CONDITION
@@ -404,31 +464,17 @@ while True:
                 print('Database record added')
 
             conn.commit()
-
-            collected_images = [image for image in glob.glob(folder_name+'/*.png')]
-            if len(collected_images) == 3:
-                hp_bar_1 = cv2.imread(collected_images[0])[1:85, 0:1920]
-                hp_bar_2 = cv2.imread(collected_images[1])[1:85, 0:1920]
-                end_screen = cv2.imread(collected_images[2])[391:840, 0:1920]
-                vertically_stacked = cv2.vconcat([hp_bar_1, hp_bar_2, end_screen])
-
-            if len(collected_images) == 4:
-                hp_bar_1 = cv2.imread(collected_images[0])[1:85, 0:1920]
-                hp_bar_2 = cv2.imread(collected_images[1])[1:85, 0:1920]
-                hp_bar_3 = cv2.imread(collected_images[2])[1:85, 0:1920]
-                end_screen = cv2.imread(collected_images[3])[391:840, 0:1920]
-                vertically_stacked = cv2.vconcat([hp_bar_1, hp_bar_2, hp_bar_3, end_screen])
-
-            #cv2.imwrite(folder_name + '/stacked.png', vertically_stacked)
+            conn.close()
 
             #PARSING ENDING
-            'RECORDED SUCCESSFULLY'
+            print('Encounter saved ')
             recording=False
             time.sleep(5)
 
     if not recording:
         print('Stopped')
         match_image_dict = {}
+        printed = False
         player_selected_fighters = [None, None, None]
         enemy_selected_fighters = [None, None, None]
         time.sleep(1)
