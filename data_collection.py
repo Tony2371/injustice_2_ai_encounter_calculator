@@ -6,7 +6,7 @@ import cv2
 import time
 import sqlite3
 import hashlib
-from classes_and_functions import Fighter, fighters_hash_pixels, template_matching, ModelHpTrack, ModelFighterRecognition, flattened_masked_image, similarity, fighter_indices
+from classes_and_functions import Fighter, fighters_hash_pixels, template_matching, ModelHpTrack, ModelFighterRecognition, ModelDigitRecognition, flattened_masked_image, similarity, fighter_indices
 import torch
 
 #GLOBAL VARIABLES
@@ -16,7 +16,6 @@ conn = sqlite3.connect('injustice_2.db')
 cursor = conn.cursor()
 
 recording = False
-enemy_ai_stats_dict = {}
 match_image_dict = {}
 player_selected_fighters = [None, None, None]
 enemy_selected_fighters = [None, None, None]
@@ -30,11 +29,16 @@ nn_fighter_recognition = ModelFighterRecognition()
 nn_fighter_recognition.load_state_dict(torch.load('nn_weights/weights_fighter_recognition.pth'))
 nn_fighter_recognition.eval()
 
+nn_digit_recognition = ModelDigitRecognition()
+nn_digit_recognition.load_state_dict(torch.load('nn_weights/weights_digit_recognition.pth'))
+nn_digit_recognition.eval()
+
 template_player_hero_selection = cv2.imread('images/template_player_hero_selection.png')
 template_ai_primary = cv2.imread('images/template_primary.png')
 template_ai_secondary = cv2.imread('images/template_secondary.png')
 template_player_fighter_selection = cv2.imread('images/template_player_fighter_selection.png')
 template_defending_team = cv2.imread('images/defending_team.png')
+template_empty_digit = cv2.imread('images/template_empty_digit.png')
 
 
 player_fighter_1 = Fighter(name='catwoman',
@@ -112,22 +116,120 @@ while True:
             fighter_name_zone = screen_image[146:172, 1620:1820]
             hash_current = hashlib.sha256(fighter_name_zone.tobytes()).hexdigest()
             for character, hash_value in fighters_hash_pixels.items():
-                if hash_value == hash_current:
-                    #if character not in enemy_ai_stats_dict.keys():
+                if hash_value == hash_current and None not in enemy_selected_fighters:
                     for fighter in enemy_selected_fighters:
                         if fighter.name == character:
-                            zone_grappling = screen_image[201:218, 1410:1432]
-                            zone_rushdown = screen_image[245:262, 1410:1432]
-                            zone_combos = screen_image[291:308, 1410:1432]
-                            zone_counters = screen_image[336:353, 1410:1432]
-                            zone_zoning = screen_image[381:398, 1410:1432]
-                            zone_runaway = screen_image[426:443, 1410:1432]
-                            grappling = template_matching(zone_grappling, 'at_stats_level_icons')[0]
-                            rushdown = template_matching(zone_rushdown, 'at_stats_level_icons')[0]
-                            combos = template_matching(zone_combos, 'at_stats_level_icons')[0]
-                            counters = template_matching(zone_counters, 'at_stats_level_icons')[0]
-                            zoning = template_matching(zone_zoning, 'at_stats_level_icons')[0]
-                            runaway = template_matching(zone_runaway, 'at_stats_level_icons')[0]
+                            # GRAPPLING STAT DETECTION
+                            grappling_value_1 = "_"
+                            grappling_value_2 = "_"
+                            zone_grappling_1 = screen_image[198:198+22, 1408:1408+14]
+                            zone_grappling_2 = screen_image[198:198+22, 1420:1420+14]
+                            grappling_recognition_1 = nn_digit_recognition(torch.tensor(zone_grappling_1/255).unsqueeze(0))
+                            grappling_recognition_2 = nn_digit_recognition(torch.tensor(zone_grappling_2/255).unsqueeze(0))
+                            if torch.max(grappling_recognition_1).item() > 4.5:
+                                grappling_value_1 = str(torch.argmax(grappling_recognition_1).item())
+                            if torch.max(grappling_recognition_2).item() > 4.5:
+                                grappling_value_2 = str(torch.argmax(grappling_recognition_2).item())
+                            if similarity(template_empty_digit, zone_grappling_2) < 0.85:
+                                grappling = grappling_value_1+grappling_value_2
+                            else:
+                                grappling = grappling_value_1
+
+
+                            # RUSHDOWN STAT DETECTION
+                            rushdown_value_1 = "_"
+                            rushdown_value_2 = "_"
+                            zone_rushdown_1 = screen_image[242:242 + 22, 1408:1408 + 14]
+                            zone_rushdown_2 = screen_image[242:242 + 22, 1420:1420 + 14]
+                            rushdown_recognition_1 = nn_digit_recognition(
+                                torch.tensor(zone_rushdown_1 / 255).unsqueeze(0))
+                            rushdown_recognition_2 = nn_digit_recognition(
+                                torch.tensor(zone_rushdown_2 / 255).unsqueeze(0))
+                            if torch.max(rushdown_recognition_1).item() > 4.5:
+                                rushdown_value_1 = str(torch.argmax(rushdown_recognition_1).item())
+                            if torch.max(rushdown_recognition_2).item() > 4.5:
+                                rushdown_value_2 = str(torch.argmax(rushdown_recognition_2).item())
+                            if similarity(template_empty_digit, zone_rushdown_2) < 0.85:
+                                rushdown = rushdown_value_1 + rushdown_value_2
+                            else:
+                                rushdown = rushdown_value_1
+
+
+                            # COMBOS ZONE DETECTION
+                            combos_value_1 = "_"
+                            combos_value_2 = "_"
+                            zone_combos_1 = screen_image[288:288 + 22, 1408:1408 + 14]
+                            zone_combos_2 = screen_image[288:288 + 22, 1420:1420 + 14]
+                            combos_recognition_1 = nn_digit_recognition(
+                                torch.tensor(zone_combos_1 / 255).unsqueeze(0))
+                            combos_recognition_2 = nn_digit_recognition(
+                                torch.tensor(zone_combos_2 / 255).unsqueeze(0))
+                            if torch.max(combos_recognition_1).item() > 4.5:
+                                combos_value_1 = str(torch.argmax(combos_recognition_1).item())
+                            if torch.max(combos_recognition_2).item() > 4.5:
+                                combos_value_2 = str(torch.argmax(combos_recognition_2).item())
+                            if similarity(template_empty_digit, zone_combos_2) < 0.85:
+                                combos = combos_value_1 + combos_value_2
+                            else:
+                                combos = combos_value_1
+
+
+                            # COUNTERS ZONE DETECTION
+                            counters_value_1 = "_"
+                            counters_value_2 = "_"
+                            zone_counters_1 = screen_image[333:333 + 22, 1408:1408 + 14]
+                            zone_counters_2 = screen_image[333:333 + 22, 1420:1420 + 14]
+                            counters_recognition_1 = nn_digit_recognition(
+                                torch.tensor(zone_counters_1 / 255).unsqueeze(0))
+                            counters_recognition_2 = nn_digit_recognition(
+                                torch.tensor(zone_counters_2 / 255).unsqueeze(0))
+                            if torch.max(counters_recognition_1).item() > 4.5:
+                                counters_value_1 = str(torch.argmax(counters_recognition_1).item())
+                            if torch.max(counters_recognition_2).item() > 4.5:
+                                counters_value_2 = str(torch.argmax(counters_recognition_2).item())
+                            if similarity(template_empty_digit, zone_counters_2) < 0.85:
+                                counters = counters_value_1 + counters_value_2
+                            else:
+                                counters = counters_value_1
+
+
+                            # ZONING ZONE DETECTION
+                            zoning_value_1 = "_"
+                            zoning_value_2 = "_"
+                            zone_zoning_1 = screen_image[378:378 + 22, 1408:1408 + 14]
+                            zone_zoning_2 = screen_image[378:378 + 22, 1420:1420 + 14]
+                            zoning_recognition_1 = nn_digit_recognition(
+                                torch.tensor(zone_zoning_1 / 255).unsqueeze(0))
+                            zoning_recognition_2 = nn_digit_recognition(
+                                torch.tensor(zone_zoning_2 / 255).unsqueeze(0))
+                            if torch.max(zoning_recognition_1).item() > 4.5:
+                                zoning_value_1 = str(torch.argmax(zoning_recognition_1).item())
+                            if torch.max(zoning_recognition_2).item() > 4.5:
+                                zoning_value_2 = str(torch.argmax(zoning_recognition_2).item())
+                            if similarity(template_empty_digit, zone_zoning_2) < 0.85:
+                                zoning = zoning_value_1 + zoning_value_2
+                            else:
+                                zoning = zoning_value_1
+
+
+                            # RUNAWAY ZONE DETECTION
+                            runaway_value_1 = "_"
+                            runaway_value_2 = "_"
+                            zone_runaway_1 = screen_image[423:423 + 22, 1408:1408 + 14]
+                            zone_runaway_2 = screen_image[423:423 + 22, 1420:1420 + 14]
+                            runaway_recognition_1 = nn_digit_recognition(
+                                torch.tensor(zone_runaway_1 / 255).unsqueeze(0))
+                            runaway_recognition_2 = nn_digit_recognition(
+                                torch.tensor(zone_runaway_2 / 255).unsqueeze(0))
+                            if torch.max(runaway_recognition_1).item() > 4.5:
+                                runaway_value_1 = str(torch.argmax(runaway_recognition_1).item())
+                            if torch.max(runaway_recognition_2).item() > 4.5:
+                                runaway_value_2 = str(torch.argmax(runaway_recognition_2).item())
+                            if similarity(template_empty_digit, zone_runaway_2) < 0.85:
+                                runaway = runaway_value_1 + runaway_value_2
+                            else:
+                                runaway = runaway_value_1
+
 
                             fighter.ai_primary = str([grappling, rushdown, combos, counters, zoning, runaway]).replace(' ', '').replace("'", "")
 
@@ -252,7 +354,6 @@ while True:
 
     if not recording:
         print('Stopped')
-        enemy_ai_stats_dict = {}
         match_image_dict = {}
         player_selected_fighters = [None, None, None]
         enemy_selected_fighters = [None, None, None]
