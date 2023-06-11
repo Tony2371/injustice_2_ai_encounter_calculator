@@ -129,17 +129,23 @@ def flattened_masked_image(image, mask_path):
     normalized_image = np.concatenate((blue_channel / 255, green_channel / 255, red_channel / 255))
     return normalized_image
 
-class Net(nn.Module):
+class ModelDigitRecognition(nn.Module):
     def __init__(self):
-        super(Net, self).__init__()
-        self.fc1 = nn.Linear(4, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, 1)
+        super(ModelDigitRecognition, self).__init__()
+        self.convolution = nn.Conv2d(in_channels=3, out_channels=6, kernel_size=3)
+        self.fc1 = nn.Linear(1440, 256)
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, 10)
 
     def forward(self, x):
+        x = x.float()
+        x = x.permute(0, 3, 1, 2)
+        x = torch.relu(self.convolution(x))
+        x = x.contiguous().view(x.size(0), -1)
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
-        return torch.sigmoid(self.fc3(x))
+        x = self.fc3(x)
+        return x
 
 class ModelHpTrack(nn.Module):
     def __init__(self):
