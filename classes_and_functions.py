@@ -163,15 +163,33 @@ class ModelHpTrack(nn.Module):
     def __init__(self):
         super(ModelHpTrack, self).__init__()
 
-        self.fc1 = nn.Linear(21966, 768)
-        self.fc2 = nn.Linear(768, 512)
-        self.fc3 = nn.Linear(512, 1)  # 1 output for regression problem
+        self.conv_layer_1 = nn.Conv2d(in_channels=3, out_channels=8, kernel_size=3)
+        self.conv_layer_2 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=3)
+        self.pooling_layer = nn.MaxPool2d(2, 2)
+
+        self.fc1 = nn.Linear(53504, 2048)
+        self.fc2 = nn.Linear(2048, 512)
+        self.fc3 = nn.Linear(512, 512)
+        self.fc4 = nn.Linear(512, 1)  # 1 output for regression problem
 
     def forward(self, x):
-        x = x.float()
-        x = F.tanh(self.fc1(x))
-        x = F.tanh(self.fc2(x))
-        x = self.fc3(x)  # Apply fc3
+        x = self.conv_layer_1(x)
+        x = torch.relu(x)  # Apply activation
+        x = self.pooling_layer(x)  # Apply pooling
+
+        # Apply second convolutional layer
+        x = self.conv_layer_2(x)
+        x = torch.relu(x)  # Apply activation
+        x = self.pooling_layer(x)  # Apply pooling
+
+        # Flatten the output from the conv layers to fit into the FC layers
+        x = x.view(x.size(0), -1)
+
+        # Apply FC layers with activation
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = torch.relu(self.fc3(x))
+        x = self.fc4(x)  # Apply fc3
         return x
 
 class ModelFighterRecognition(nn.Module):
