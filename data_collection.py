@@ -44,27 +44,32 @@ template_empty_digit = cv2.imread('images/template_empty_digit.png')
 player_fighter_1 = Fighter(name='catwoman',
                            level=30,
                            ai_primary='[0,18,20,18,4,0]',
-                           ai_secondary='[0,0,30,30,0,0]')
+                           ai_secondary='[0,0,30,30,0,0]',
+                           attributes='[3169,2364,2027,2098]')
 
 player_fighter_2 = Fighter(name='black_canary',
                            level=26,
                            ai_primary='[0,5,30,25,0,0]',
-                           ai_secondary='[10,10,20,20,0,0]')
+                           ai_secondary='[10,10,20,20,0,0]',
+                           attributes='[1940,2635,1947,1662]')
 
 player_fighter_3 = Fighter(name='bane',
                            level=16,
                            ai_primary='[8,2,20,30,0,0]',
-                           ai_secondary='[0,8,30,22,0,0]')
+                           ai_secondary='[0,8,30,22,0,0]',
+                           attributes='[1953,1534,1640,1293]')
 
 player_fighter_4 = Fighter(name='wonder_woman',
                            level=13,
                            ai_primary='[0,0,30,30,0,0]',
-                           ai_secondary='[13,17,25,5,0,0]')
+                           ai_secondary='[13,17,25,5,0,0]',
+                           attributes='[1620,1535,1463,1118]')
 
 player_fighter_5 = Fighter(name='enchantress',
                            level=10,
                            ai_primary='[0,13,30,17,0,0]',
-                           ai_secondary='[0,0,28,0,25,7]')
+                           ai_secondary='[0,0,28,0,25,7]',
+                           attributes='[1395,1548,1294,1088]')
 
 player_fighters = [player_fighter_1, player_fighter_2, player_fighter_3, player_fighter_4, player_fighter_5]
 
@@ -230,12 +235,85 @@ while True:
                             else:
                                 runaway = runaway_value_1
 
-
                             fighter.ai_primary = str([grappling, rushdown, combos, counters, zoning, runaway]).replace(' ', '').replace("'", "")
 
 
+                            # OPPONENT ATTRIBUTES PARSING ZONE
+                            str_recognition_1 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1630:1646], (14, 22))).unsqueeze(0))
+                            str_recognition_2 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1646:1662], (14, 22))).unsqueeze(0))
+                            str_recognition_3 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1660:1676], (14, 22))).unsqueeze(0))
+                            str_recognition_4 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1674:1690], (14, 22))).unsqueeze(0))
 
-        # PLAYER AI STATS PARSING ZONE
+                            strength = str(torch.argmax(str_recognition_1).item())+\
+                            str(torch.argmax(str_recognition_2).item())+\
+                            str(torch.argmax(str_recognition_3).item())+\
+                            str(torch.argmax(str_recognition_4).item())
+
+
+                            abl_recognition_1 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1701:1717], (14, 22))).unsqueeze(0))
+                            abl_recognition_2 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1716:1732], (14, 22))).unsqueeze(0))
+                            abl_recognition_3 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1730:1746], (14, 22))).unsqueeze(0))
+                            abl_recognition_4 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1744:1760], (14, 22))).unsqueeze(0))
+
+                            ability = str(torch.argmax(abl_recognition_1).item()) + \
+                                       str(torch.argmax(abl_recognition_2).item()) + \
+                                       str(torch.argmax(abl_recognition_3).item()) + \
+                                       str(torch.argmax(abl_recognition_4).item())
+
+
+                            def_recognition_1 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1771:1771+16], (14, 22))).unsqueeze(0))
+                            def_recognition_2 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1786:1786+16], (14, 22))).unsqueeze(0))
+                            def_recognition_3 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1800:1816], (14, 22))).unsqueeze(0))
+                            def_recognition_4 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1814:1830], (14, 22))).unsqueeze(0))
+
+                            defense = str(torch.argmax(def_recognition_1).item()) + \
+                                      str(torch.argmax(def_recognition_2).item()) + \
+                                      str(torch.argmax(def_recognition_3).item()) + \
+                                      str(torch.argmax(def_recognition_4).item())
+
+
+                            hp_recognition_1 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1841:1857], (14, 22))).unsqueeze(0))
+                            hp_recognition_2 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1856:1856 + 16], (14, 22))).unsqueeze(0))
+                            hp_recognition_3 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1870:1886], (14, 22))).unsqueeze(0))
+                            hp_recognition_4 = nn_digit_recognition(
+                                torch.tensor(cv2.resize(screen_image[81:107, 1884:1900], (14, 22))).unsqueeze(0))
+
+                            health_points = str(torch.argmax(hp_recognition_1).item()) + \
+                                      str(torch.argmax(hp_recognition_2).item()) + \
+                                      str(torch.argmax(hp_recognition_3).item()) + \
+                                      str(torch.argmax(hp_recognition_4).item())
+
+                            '''
+                            cv2.imwrite(f'digits_dataset/w_{int(time.time())}.png',
+                                        cv2.resize(screen_image[81:107, 1841:1857], (14, 22)))
+                            cv2.imwrite(f'digits_dataset/x_{int(time.time())}.png',
+                                        cv2.resize(screen_image[81:107, 1856:1856 + 16], (14, 22)))
+                            cv2.imwrite(f'digits_dataset/y_{int(time.time())}.png',
+                                        cv2.resize(screen_image[81:107, 1870:1886], (14, 22)))
+                            cv2.imwrite(f'digits_dataset/z_{int(time.time())}.png',
+                                        cv2.resize(screen_image[81:107, 1884:1900], (14, 22)))
+                            
+                            '''
+
+                            fighter.attributes = f'[{strength},{ability},{defense},{health_points}]'
+                            print(fighter.attributes)
+
+                            # PLAYER AI STATS PARSING ZONE
         if similarity(screen_image[55:75, 110:370], template_player_hero_selection) >= 0.85:
             for fighter in player_fighters:
                 if fighter.name == template_matching(screen_image[0:44, 0:300], 'player_fighter_names')[0]:
@@ -321,12 +399,8 @@ while True:
             #cv2.imwrite(folder_name+f'/{str(time.time()).replace(".", "_")}.png', screen_image)
             for fighter_1, fighter_2 in zip(player_selected_fighters, enemy_selected_fighters):
                 choose_ai = lambda f: f.ai_primary if f.selected_ai == 'primary' else f.ai_secondary
-                cursor.execute('INSERT INTO ai_battle_log_advanced (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_ai, fighter_2_ai) VALUES (?, ?, ?, ?, ?, ?)', (fighter_1.name,
-                                                                                                                                                                                               fighter_2.name,
-                                                                                                                                                                                               fighter_1.level,
-                                                                                                                                                                                               fighter_2.level,
-                                                                                                                                                                                               choose_ai(fighter_1),
-                                                                                                                                                                                               fighter_2.ai_primary))
+                data = (fighter_1.name, fighter_2.name, fighter_1.level, fighter_2.level, fighter_1.attributes, fighter_2.attributes, choose_ai(fighter_1), fighter_2.ai_primary)
+                cursor.execute('INSERT INTO ai_battle_log_full (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes,fighter_1_ai, fighter_2_ai) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', data)
                 print('Database record added')
 
             conn.commit()
