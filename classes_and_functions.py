@@ -2,10 +2,10 @@ import torch
 from torch import nn, optim
 import torch.nn.functional as F
 import numpy as np
-import itertools
 import glob
 import cv2
 from skimage.metrics import structural_similarity as ssim
+import random
 
 # LOW THRESHOLD FOR WHITE IS (245, 245, 245)
 fighters_hash_pixels = {
@@ -48,6 +48,19 @@ fighters_hash_pixels = {
     'tmnt': '39c87d17e4620909ffc740fd685fca085dac4f332842e0d4de4098ed6481f414',
     'wonder_woman': '385683730cfe3b7f50005d14ba1ff03d68f61dfd10d39f4fb38c7cf34a58d24e',
 }
+
+def generate_random_ai_loadout():
+    numbers = [0 for i in range(6)]
+    remainder = 60
+    for i in range(6):
+        max_value = min(remainder - (5 - i), 30)
+        num = random.randint(0, max_value)
+        remainder -= num
+        numbers[i] = num
+    numbers[-1] += remainder
+    random.shuffle(numbers)
+
+    return numbers
 
 def fighter_indices(fighter_name=None, fighter_index=None):
     fighter_indices = {
@@ -106,7 +119,6 @@ def similarity(image_1, image_2):
     image_2 = cv2.cvtColor(image_2, cv2.COLOR_BGR2GRAY)
     similarity = ssim(image_1, image_2)
     return similarity
-
 
 def template_matching(image_input, template_folder, resize=None):
     probability = 0
