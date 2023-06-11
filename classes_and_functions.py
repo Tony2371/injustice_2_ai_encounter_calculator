@@ -189,12 +189,13 @@ class Row():
         self.index = index
 
 class Fighter():
-    def __init__(self, name, level, ai_primary=None, ai_secondary=None):
+    def __init__(self, name, level, ai_primary=None, ai_secondary=None, attributes=None):
         self.name = name
         self.level = level
         self.ai_primary = ai_primary
         self.ai_secondary = ai_secondary
         self.selected_ai = 'primary'
+        self.attributes = attributes
 
 class Encounter_group():
     def __init__(self, group, model, fighter_indices):
