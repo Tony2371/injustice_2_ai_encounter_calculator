@@ -10,7 +10,7 @@ from classes_and_functions import Fighter, fighters_hash_pixels, template_matchi
 import torch
 
 #GLOBAL VARIABLES
-folder_name = 'hp_extra_dataset'
+folder_name = 'for_hp_dataset'
 
 conn = sqlite3.connect('injustice_2.db')
 cursor = conn.cursor()
@@ -18,12 +18,16 @@ cursor = conn.cursor()
 recording = False
 printed = False
 match_image_dict = {}
+round_buffer = []
+round_counter = 1
+round_started = False
+round_ended = False
 player_selected_fighters = [None, None, None]
 enemy_selected_fighters = [None, None, None]
 
-hp_mask = cv2.imread('images/left_hp_mask.png', 0)
+
 nn_hp_track = ModelHpTrack()
-#nn_hp_track.load_state_dict(torch.load('nn_weights/weights_hp_track.pth'))
+nn_hp_track.load_state_dict(torch.load('nn_weights/weights_hp_track.pth'))
 nn_hp_track.eval()
 
 nn_fighter_recognition = ModelFighterRecognition()
@@ -55,21 +59,21 @@ player_fighter_2 = Fighter(name='black_canary',
                            attributes='[1940,2635,1947,1662]')
 
 player_fighter_3 = Fighter(name='bane',
-                           level=16,
+                           level=17,
                            ai_primary='[8,2,20,30,0,0]',
                            ai_secondary='[0,8,30,22,0,0]',
-                           attributes='[1953,1534,1640,1293]')
+                           attributes='[1983,1556,1662,1303]')
 
 player_fighter_4 = Fighter(name='wonder_woman',
-                           level=13,
+                           level=15,
                            ai_primary='[0,0,30,30,0,0]',
                            ai_secondary='[13,17,25,5,0,0]',
-                           attributes='[1620,1535,1463,1118]')
+                           attributes='[1603,1671,1488,1145]')
 
 player_fighter_5 = Fighter(name='enchantress',
                            level=11,
                            ai_primary='[0,13,30,17,0,0]',
-                           ai_secondary='[0,0,28,0,25,7]',
+                           ai_secondary='[5,10,25,15,0,5]',
                            attributes='[1422,1575,1316,1095]')
 
 player_fighters = [player_fighter_1, player_fighter_2, player_fighter_3, player_fighter_4, player_fighter_5]
@@ -150,14 +154,14 @@ while True:
                     enemy_selected_fighters[2].level = int(str(torch.argmax(opponent_3_level_recognition_1).item())+str(torch.argmax(opponent_3_level_recognition_2).item()))
 
 
-                '''
-                cv2.imwrite(f'digits_dataset/Z1{str(time.time()).split(".")[1]}.png', zone_opponent_1_level_1)
-                cv2.imwrite(f'digits_dataset/Z2{str(time.time()).split(".")[1]}.png', zone_opponent_1_level_2)
-                cv2.imwrite(f'digits_dataset/Z3{str(time.time()).split(".")[1]}.png', zone_opponent_2_level_1)
-                cv2.imwrite(f'digits_dataset/Z4{str(time.time()).split(".")[1]}.png', zone_opponent_2_level_2)
-                cv2.imwrite(f'digits_dataset/Z5{str(time.time()).split(".")[1]}.png', zone_opponent_2_level_1)
-                cv2.imwrite(f'digits_dataset/Z6{str(time.time()).split(".")[1]}.png', zone_opponent_2_level_2)
-                '''
+
+                #cv2.imwrite(f'digits_dataset/Z1{str(time.time()).split(".")[1]}.png', zone_opponent_1_level_1)
+                #cv2.imwrite(f'digits_dataset/Z2{str(time.time()).split(".")[1]}.png', zone_opponent_1_level_2)
+                #cv2.imwrite(f'digits_dataset/Z3{str(time.time()).split(".")[1]}.png', zone_opponent_2_level_1)
+                #cv2.imwrite(f'digits_dataset/Z4{str(time.time()).split(".")[1]}.png', zone_opponent_2_level_2)
+                #cv2.imwrite(f'digits_dataset/Z5{str(time.time()).split(".")[1]}.png', zone_opponent_3_level_1)
+                #cv2.imwrite(f'digits_dataset/Z6{str(time.time()).split(".")[1]}.png', zone_opponent_3_level_2)
+
 
 
                 print([f.level for f in enemy_selected_fighters])
@@ -298,8 +302,6 @@ while True:
                             str_recognition_4 = nn_digit_recognition(
                                 torch.tensor(cv2.resize(screen_image[81:107, 1674:1690], (14, 22))).unsqueeze(0))
 
-
-
                             strength = str(torch.argmax(str_recognition_1).item())+\
                             str(torch.argmax(str_recognition_2).item())+\
                             str(torch.argmax(str_recognition_3).item())+\
@@ -350,7 +352,11 @@ while True:
                                       str(torch.argmax(hp_recognition_3).item()) + \
                                       str(torch.argmax(hp_recognition_4).item())
 
-                            # cv2.imwrite('extra_digit.png', cv2.resize(screen_image[81:107, 1630:1646], (14, 22)))
+
+                            #cv2.imwrite('digits_dataset/Z_digit.png', cv2.resize(screen_image[81:107, 1701:1717], (14, 22)))
+                            #cv2.imwrite('digits_dataset/Z1_digit.png', cv2.resize(screen_image[81:107, 1856:1856 + 16], (14, 22)))
+                            #cv2.imwrite('digits_dataset/Z1_digit.png', cv2.resize(screen_image[81:107, 1730:1746], (14, 22)))
+                            #cv2.imwrite('digits_dataset/Z1_digit.png', cv2.resize(screen_image[81:107, 1884:1900], (14, 22)))
                             '''
                             cv2.imwrite(f'digits_dataset/w_{int(time.time())}.png',
                                         cv2.resize(screen_image[81:107, 1841:1857], (14, 22)))
@@ -364,6 +370,7 @@ while True:
                             '''
 
                             fighter.attributes = f'[{strength},{ability},{defense},{health_points}]'
+                            print(fighter.attributes)
 
 
         # PLAYER AI STATS PARSING ZONE
@@ -380,7 +387,6 @@ while True:
                     if f.name == current_selected_fighter:
                         f.selected_ai = 'primary'
 
-            #print([[a.name, a.selected_ai] for a in player_fighters])
             zone_player_1 = screen_image[311:311+80, 116:116+80]
             zone_player_2 = screen_image[311:311+80, 287:287+80]
             zone_player_3 = screen_image[311:311+80, 448:448+80]
@@ -397,66 +403,59 @@ while True:
                 selection_2 = fighter_indices(fighter_index=torch.argmax(player_recognition_2).item())
                 if selection_2 != 'not_selected' and len([f for f in player_fighters if f.name == selection_2]) > 0:
                     player_selected_fighters[1] = [f for f in player_fighters if f.name == selection_2][0]
-            if torch.max(player_recognition_3).item() > 3:
-                selection_3 = fighter_indices(fighter_index=torch.argmax(player_recognition_3).item())
-                if selection_3 != 'not_selected' and len([f for f in player_fighters if f.name == selection_3]) > 0:
-                    player_selected_fighters[2] = [f for f in player_fighters if f.name == selection_3][0]
+            if cv2.countNonZero(cv2.inRange(screen_image[600:650, 1380:1430], lowerb=(0, 0, 0), upperb=(10, 10, 10))) >= 200:
+                selection_3 = template_matching(screen_image[0:44, 0:300], 'player_fighter_names')[0]
+                player_selected_fighters[2] = [f for f in player_fighters if f.name == selection_3][0]
+                if None not in player_selected_fighters:
+                    print([(f.name, f.selected_ai) for f in player_selected_fighters])
+
+        # ROUND IN PROGRESS
+        zone_round_left = screen_image[60:80, 927:937]
+        zone_round_right = screen_image[60:80, 982:992]
+
+        detection_zone_round_left = cv2.countNonZero(cv2.inRange(zone_round_left, lowerb=(104, 73, 67), upperb=(110, 76, 72)))
+        detection_zone_round_right = cv2.countNonZero(cv2.inRange(zone_round_right, lowerb=(104, 73, 67), upperb=(110, 76, 72)))
+
+        if detection_zone_round_left >= 185 and detection_zone_round_right >= 185:
+            fighter_1_hp_zone = screen_image[9:79, 73:917]
+            fighter_2_hp_zone = cv2.flip(screen_image[9:79, 1004:1848], 1)
+
+            fighter_1_hp = nn_hp_track(
+                torch.tensor(fighter_1_hp_zone / 255, dtype=torch.float).permute(2, 0, 1).unsqueeze(0)).item()
+            fighter_2_hp = nn_hp_track(
+                torch.tensor(fighter_2_hp_zone / 255, dtype=torch.float).permute(2, 0, 1).unsqueeze(0)).item()
+
+        round_buffer.append(detection_zone_round_left)
+        round_buffer.append(detection_zone_round_right)
+        if len(round_buffer) >= 150:
+            round_buffer.pop(0)
+            round_buffer.pop(0)
 
 
-        '''
-        for f in player_selected_fighters:
-            try:
-                print(f.name)
-            except:
-                print(0)
-        print('-'*5)
-        '''
-        if None not in enemy_selected_fighters and not printed and None not in player_selected_fighters:
-            print('PLAYER:')
-            for f in player_selected_fighters:
-                print(f.name, f.level)
-                print(f.selected_ai)
-                print('-')
-            print('*'*5)
-            print('ENEMY:')
-            for f in enemy_selected_fighters:
-                print(f.name, f.level)
-                print(f.ai_primary)
-                print(f.attributes)
-                print('-')
-            print('#'*30)
-            printed = True
+        if sum(round_buffer)/len(round_buffer) >= 180:
+            round_started = True
+            round_ended = False
+            time.sleep(0.2)
         else:
-            print(player_selected_fighters)
-            printed = True
+            if not round_ended and round_started == True:
+                print(f'Round {round_counter} ended')
+                print('Fighter 1 hp: ', round(fighter_1_hp, 3))
+                print('Fighter 2 hp: ', round(fighter_2_hp, 3))
+                cv2.imwrite(folder_name + f'/neural_l_{round_counter}_{str(time.time()).replace(".", "_")}.png',
+                            fighter_1_hp_zone)
+                cv2.imwrite(folder_name + f'/neural_r_{round_counter}_{str(time.time()).replace(".", "_")}.png',
+                            fighter_2_hp_zone)
 
+                round_counter += 1
+                round_ended = True
+                round_started = False
 
-        # ROUND END CONDITION
-        mask_1 = cv2.inRange(zone_hp_1, lowerb=(0, 240, 248), upperb=(255, 242, 250))
-        mask_2 = cv2.inRange(zone_hp_2, lowerb=(0, 240, 248), upperb=(255, 242, 250))
-
-        # Fighter_1 looses
-        if cv2.countNonZero(mask_1) >= 50:
-
-            cv2.imwrite(folder_name + f'/{str(time.time()).replace(".", "_")}.png', screen_image)
-
-            print(f'Recorded {int(time.time())}')
-            time.sleep(0.5)
-
-        # Fighter_2 looses
-        if cv2.countNonZero(mask_2) >= 50:
-
-            cv2.imwrite(folder_name+f'/{str(time.time()).replace(".","_")}.png', screen_image)
-
-            print(f'Recorded {int(time.time())}')
-            time.sleep(0.5)
 
         # ENCOUNTER END CONDITION
         mask_end_1 = cv2.inRange(zone_end_match_1, lowerb=(82, 64, 49), upperb=(84, 66, 51))
         mask_end_2 = cv2.inRange(zone_end_match_2, lowerb=(82, 64, 49), upperb=(84, 66, 51))
         if cv2.countNonZero(mask_end_1) >= 0.95*zone_end_match_1.shape[0]*zone_end_match_1.shape[1] and cv2.countNonZero(mask_end_2) >= 0.95*zone_end_match_2.shape[0]*zone_end_match_2.shape[1]:
             match_image_dict[int(time.time())] = screen_image
-            #cv2.imwrite(folder_name+f'/{str(time.time()).replace(".", "_")}.png', screen_image)
             for fighter_1, fighter_2 in zip(player_selected_fighters, enemy_selected_fighters):
                 choose_ai = lambda f: f.ai_primary if f.selected_ai == 'primary' else f.ai_secondary
                 data = (fighter_1.name, fighter_2.name, fighter_1.level, fighter_2.level, fighter_1.attributes, fighter_2.attributes, choose_ai(fighter_1), fighter_2.ai_primary)
@@ -464,7 +463,6 @@ while True:
                 print('Database record added')
 
             conn.commit()
-            conn.close()
 
             #PARSING ENDING
             print('Encounter saved ')
@@ -477,5 +475,7 @@ while True:
         printed = False
         player_selected_fighters = [None, None, None]
         enemy_selected_fighters = [None, None, None]
+        round_buffer = []
+        round_counter = 1
         time.sleep(1)
 
