@@ -11,6 +11,7 @@ import torch
 
 #GLOBAL VARIABLES
 folder_name = 'for_hp_dataset'
+seconds_per_tick = 1.0 / 30
 
 conn = sqlite3.connect('injustice_2.db')
 cursor = conn.cursor()
@@ -82,6 +83,7 @@ player_fighters = [player_fighter_1, player_fighter_2, player_fighter_3, player_
 
 # MAIN LOOP
 while True:
+    start_time = time.time()
     keyboard.on_press_key('p',
                           lambda e: exec('global recording; recording = True'))
     keyboard.on_press_key('l',
@@ -105,7 +107,7 @@ while True:
         # OPPONENT AI STATS PARSING ZONE
         if None in enemy_selected_fighters:
             if similarity(template_defending_team, screen_image[597:626, 1713:1901]) > 0.85:
-                time.sleep(0.7)
+                time.sleep(0.3)
                 zone_opponent_1 = screen_image[291:291 + 80, 1425:1425 + 80]
                 zone_opponent_2 = screen_image[291:291 + 80, 1593:1593 + 80]
                 zone_opponent_3 = screen_image[291:291 + 80, 1758:1758 + 80]
@@ -356,7 +358,7 @@ while True:
                             #cv2.imwrite('digits_dataset/Z_digit.png', cv2.resize(screen_image[81:107, 1701:1717], (14, 22)))
                             #cv2.imwrite('digits_dataset/Z1_digit.png', cv2.resize(screen_image[81:107, 1856:1856 + 16], (14, 22)))
                             #cv2.imwrite('digits_dataset/Z1_digit.png', cv2.resize(screen_image[81:107, 1730:1746], (14, 22)))
-                            #cv2.imwrite('digits_dataset/Z1_digit.png', cv2.resize(screen_image[81:107, 1884:1900], (14, 22)))
+                            cv2.imwrite('digits_dataset/Z1_digit.png', cv2.resize(screen_image[81:107, 1744:1760], (14, 22)))
                             '''
                             cv2.imwrite(f'digits_dataset/w_{int(time.time())}.png',
                                         cv2.resize(screen_image[81:107, 1841:1857], (14, 22)))
@@ -431,11 +433,9 @@ while True:
             round_buffer.pop(0)
             round_buffer.pop(0)
 
-
-        if sum(round_buffer)/len(round_buffer) >= 180:
+        if sum(round_buffer)/len(round_buffer) >= 120:
             round_started = True
             round_ended = False
-            time.sleep(0.2)
         else:
             if not round_ended and round_started == True:
                 print(f'Round {round_counter} ended')
@@ -456,18 +456,33 @@ while True:
         mask_end_2 = cv2.inRange(zone_end_match_2, lowerb=(82, 64, 49), upperb=(84, 66, 51))
         if cv2.countNonZero(mask_end_1) >= 0.95*zone_end_match_1.shape[0]*zone_end_match_1.shape[1] and cv2.countNonZero(mask_end_2) >= 0.95*zone_end_match_2.shape[0]*zone_end_match_2.shape[1]:
             match_image_dict[int(time.time())] = screen_image
-            for fighter_1, fighter_2 in zip(player_selected_fighters, enemy_selected_fighters):
-                choose_ai = lambda f: f.ai_primary if f.selected_ai == 'primary' else f.ai_secondary
-                data = (fighter_1.name, fighter_2.name, fighter_1.level, fighter_2.level, fighter_1.attributes, fighter_2.attributes, choose_ai(fighter_1), fighter_2.ai_primary)
-                cursor.execute('INSERT INTO ai_battle_log_full (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes,fighter_1_ai, fighter_2_ai) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', data)
-                print('Database record added')
+            if round_counter == 3:
+                for fighter_1, fighter_2 in zip(player_selected_fighters[:2], enemy_selected_fighters[:2]):
+                    try:
+                        choose_ai = lambda f: f.ai_primary if f.selected_ai == 'primary' else f.ai_secondary
+                        data = (fighter_1.name, fighter_2.name, fighter_1.level, fighter_2.level, fighter_1.attributes, fighter_2.attributes, choose_ai(fighter_1), fighter_2.ai_primary)
+                        cursor.execute('INSERT INTO ai_battle_log_full (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes,fighter_1_ai, fighter_2_ai) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', data)
+                        print('Database record added')
+                    except:
+                        print(player_selected_fighters)
+                        print(enemy_selected_fighters)
+            else:
+                for fighter_1, fighter_2 in zip(player_selected_fighters, enemy_selected_fighters):
+                    try:
+                        choose_ai = lambda f: f.ai_primary if f.selected_ai == 'primary' else f.ai_secondary
+                        data = (fighter_1.name, fighter_2.name, fighter_1.level, fighter_2.level, fighter_1.attributes, fighter_2.attributes, choose_ai(fighter_1), fighter_2.ai_primary)
+                        cursor.execute('INSERT INTO ai_battle_log_full (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes,fighter_1_ai, fighter_2_ai) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', data)
+                        print('Database record added')
+                    except:
+                        print(player_selected_fighters)
+                        print(enemy_selected_fighters)
 
             conn.commit()
 
             #PARSING ENDING
             print('Encounter saved ')
-            recording=False
-            time.sleep(5)
+            recording = False
+
 
     if not recording:
         print('Stopped')
@@ -477,5 +492,10 @@ while True:
         enemy_selected_fighters = [None, None, None]
         round_buffer = []
         round_counter = 1
-        time.sleep(1)
+
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    if elapsed_time < seconds_per_tick:
+        time.sleep(seconds_per_tick - elapsed_time)
 
