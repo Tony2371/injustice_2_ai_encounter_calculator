@@ -149,14 +149,15 @@ class ModelDigitRecognition(nn.Module):
         self.fc1 = nn.Linear(1440, 256)
         self.fc2 = nn.Linear(256, 128)
         self.fc3 = nn.Linear(128, 10)
+        self.mish = nn.Mish()
 
     def forward(self, x):
         x = x.float()
         x = x.permute(0, 3, 1, 2)
         x = torch.relu(self.convolution(x))
         x = x.contiguous().view(x.size(0), -1)
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
+        x = self.mish(self.fc1(x))
+        x = self.mish(self.fc2(x))
         x = self.fc3(x)
         return x
 
@@ -200,13 +201,14 @@ class ModelFighterRecognition(nn.Module):
         self.fc1 = nn.Linear(19200, 512) #19200 IS 80x80 images with 3 channels
         self.fc2 = nn.Linear(512, 512)
         self.fc3 = nn.Linear(512, 39)  # 1 output for regression problem
+        self.mish = nn.Mish()
 
     def forward(self, x):
         #x = x.view(x.size(0), -1)
         x = x.flatten()
         x = x.float()
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = self.mish(self.fc1(x))
+        x = self.mish(self.fc2(x))
         x = self.fc3(x)  # Apply fc3
         return x
 
