@@ -141,6 +141,7 @@ def flattened_masked_image(image, mask_path):
     normalized_image = np.concatenate((blue_channel / 255, green_channel / 255, red_channel / 255))
     return normalized_image
 
+
 class ModelDigitRecognition(nn.Module):
     def __init__(self):
         super(ModelDigitRecognition, self).__init__()
@@ -166,11 +167,11 @@ class ModelHpTrack(nn.Module):
         self.conv_layer_1 = nn.Conv2d(in_channels=3, out_channels=8, kernel_size=3)
         self.conv_layer_2 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=3)
         self.pooling_layer = nn.MaxPool2d(2, 2)
+        self.mish = nn.Mish()
 
-        self.fc1 = nn.Linear(53504, 2048)
-        self.fc2 = nn.Linear(2048, 512)
-        self.fc3 = nn.Linear(512, 512)
-        self.fc4 = nn.Linear(512, 1)  # 1 output for regression problem
+        self.fc1 = nn.Linear(53504, 1024)
+        self.fc2 = nn.Linear(1024, 512)
+        self.fc3 = nn.Linear(512, 1)  # 1 output for regression problem
 
     def forward(self, x):
         x = self.conv_layer_1(x)
@@ -186,10 +187,9 @@ class ModelHpTrack(nn.Module):
         x = x.view(x.size(0), -1)
 
         # Apply FC layers with activation
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = torch.relu(self.fc3(x))
-        x = self.fc4(x)  # Apply fc3
+        x = self.mish(self.fc1(x))
+        x = self.mish(self.fc2(x))
+        x = self.fc3(x)  # Apply fc3
         return x
 
 class ModelFighterRecognition(nn.Module):
