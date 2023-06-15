@@ -20,6 +20,7 @@ printed = False
 match_image_dict = {}
 round_buffer = []
 round_counter = 1
+round_advantages = []
 round_started = False
 round_ended = False
 player_selected_fighters = [None, None, None]
@@ -48,38 +49,39 @@ template_empty_digit = cv2.imread('images/template_empty_digit.png')
 
 player_fighter_1 = Fighter(name='catwoman',
                            level=30,
-                           ai_primary='[0,18,20,18,4,0]',
-                           ai_secondary='[0,0,30,30,0,0]',
-                           attributes='[3169,2364,2027,2098]')
+                           ai_primary='[10,5,30,10,0,5]',
+                           ai_secondary='[5,0,17,23,5,10]',
+                           attributes='[3331,2296,1937,2102]')
 
 player_fighter_2 = Fighter(name='black_canary',
                            level=28,
                            ai_primary='[0,5,30,25,0,0]',
-                           ai_secondary='[10,10,20,20,0,0]',
-                           attributes='[1949,2644,1953,1665]')
+                           ai_secondary='[5,15,30,10,0,0]',
+                           attributes='[2224,2074,2158,1798]')
 
 player_fighter_3 = Fighter(name='bane',
-                           level=17,
+                           level=19,
                            ai_primary='[8,2,20,30,0,0]',
-                           ai_secondary='[0,8,30,22,0,0]',
-                           attributes='[1983,1556,1662,1303]')
+                           ai_secondary='[0,20,30,10,0,0]',
+                           attributes='[2017,1551,2176,1387]')
 
 player_fighter_4 = Fighter(name='wonder_woman',
-                           level=15,
-                           ai_primary='[0,0,30,30,0,0]',
-                           ai_secondary='[13,17,25,5,0,0]',
-                           attributes='[1603,1671,1488,1145]')
+                           level=17,
+                           ai_primary='[5,15,15,25,0,0]',
+                           ai_secondary='[0,15,25,20,0,0]',
+                           attributes='[1854,1674,1532,1151]')
 
 player_fighter_5 = Fighter(name='enchantress',
-                           level=11,
-                           ai_primary='[0,13,30,17,0,0]',
-                           ai_secondary='[5,10,25,15,0,5]',
-                           attributes='[1422,1575,1316,1095]')
+                           level=17,
+                           ai_primary='[0,0,25,0,17,18]',
+                           ai_secondary='[0,0,25,20,10,5]',
+                           attributes='[1774,2103,1471,1165]')
+
 player_fighter_6 = Fighter(name='supergirl',
-                           level=4,
-                           ai_primary='[27,3,19,2,6,3]',
-                           ai_secondary='[15,6,14,8,13,4]',
-                           attributes='[1186,1292,1136,1024]')
+                           level=13,
+                           ai_primary='[5,10,25,20,0,0]',
+                           ai_secondary='[0,15,15,30,0,0]',
+                           attributes='[1547,1585,1656,1122]')
 
 player_fighters = [player_fighter_1, player_fighter_2, player_fighter_3, player_fighter_4, player_fighter_5, player_fighter_6]
 
@@ -179,7 +181,6 @@ while True:
         if cv2.countNonZero(mask_zone_ai_parsing) == 94 and None not in enemy_selected_fighters:
             fighter_name_zone = screen_image[146:172, 1620:1820]
             character, _ = template_matching(fighter_name_zone, 'template_opponent_fighter_names')
-            print(character)
             for fighter in enemy_selected_fighters:
                 if fighter.name == character:
                     # GRAPPLING STAT DETECTION
@@ -360,7 +361,7 @@ while True:
                     #cv2.imwrite('digits_dataset/Z_digit.png', cv2.resize(screen_image[81:107, 1701:1717], (14, 22)))
                     #cv2.imwrite('digits_dataset/Z1_digit.png', cv2.resize(screen_image[81:107, 1856:1856 + 16], (14, 22)))
                     #cv2.imwrite('digits_dataset/Z1_digit.png', cv2.resize(screen_image[81:107, 1730:1746], (14, 22)))
-                    cv2.imwrite('digits_dataset/Z1_digit.png', cv2.resize(screen_image[81:107, 1744:1760], (14, 22)))
+                    #cv2.imwrite('digits_dataset/Z1_digit.png', cv2.resize(screen_image[81:107, 1744:1760], (14, 22)))
                     '''
                     cv2.imwrite(f'digits_dataset/w_{int(time.time())}.png',
                                 cv2.resize(screen_image[81:107, 1841:1857], (14, 22)))
@@ -417,8 +418,8 @@ while True:
         zone_round_left = screen_image[60:80, 927:937]
         zone_round_right = screen_image[60:80, 982:992]
 
-        detection_zone_round_left = cv2.countNonZero(cv2.inRange(zone_round_left, lowerb=(104, 73, 67), upperb=(110, 76, 72)))
-        detection_zone_round_right = cv2.countNonZero(cv2.inRange(zone_round_right, lowerb=(104, 73, 67), upperb=(110, 76, 72)))
+        detection_zone_round_left = cv2.countNonZero(cv2.inRange(zone_round_left, lowerb=(104, 72, 67), upperb=(115, 78, 72)))
+        detection_zone_round_right = cv2.countNonZero(cv2.inRange(zone_round_right, lowerb=(104, 72, 67), upperb=(115, 78, 72)))
 
         if detection_zone_round_left >= 185 and detection_zone_round_right >= 185:
             fighter_1_hp_zone = screen_image[9:79, 73:917]
@@ -440,6 +441,12 @@ while True:
             round_ended = False
         else:
             if not round_ended and round_started == True:
+
+                if fighter_1_hp > fighter_2_hp:
+                    round_advantages.append(round(fighter_1_hp, 3))
+                else:
+                    round_advantages.append(round(fighter_2_hp, 3)*-1)
+
                 print(f'Round {round_counter} ended')
                 print('Fighter 1 hp: ', round(fighter_1_hp, 3))
                 print('Fighter 2 hp: ', round(fighter_2_hp, 3))
@@ -458,26 +465,30 @@ while True:
         mask_end_2 = cv2.inRange(zone_end_match_2, lowerb=(82, 64, 49), upperb=(84, 66, 51))
         if cv2.countNonZero(mask_end_1) >= 0.95*zone_end_match_1.shape[0]*zone_end_match_1.shape[1] and cv2.countNonZero(mask_end_2) >= 0.95*zone_end_match_2.shape[0]*zone_end_match_2.shape[1]:
             match_image_dict[int(time.time())] = screen_image
+            # 3 for two rounds, becase we start with 2
             if round_counter == 3:
-                for fighter_1, fighter_2 in zip(player_selected_fighters[:2], enemy_selected_fighters[:2]):
+                for fighter_1, fighter_2, advantage in zip(player_selected_fighters[:2], enemy_selected_fighters[:2], round_advantages):
                     try:
                         choose_ai = lambda f: f.ai_primary if f.selected_ai == 'primary' else f.ai_secondary
-                        data = (fighter_1.name, fighter_2.name, fighter_1.level, fighter_2.level, fighter_1.attributes, fighter_2.attributes, choose_ai(fighter_1), fighter_2.ai_primary)
-                        cursor.execute('INSERT INTO ai_battle_log_full (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes,fighter_1_ai, fighter_2_ai) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', data)
+                        data = (fighter_1.name, fighter_2.name, fighter_1.level, fighter_2.level, fighter_1.attributes, fighter_2.attributes, choose_ai(fighter_1), fighter_2.ai_primary, advantage)
+                        cursor.execute('INSERT INTO ai_battle_log_full (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes,fighter_1_ai, fighter_2_ai, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', data)
+                        print('Database record added')
+                    except Exception as e:
+                        print(e)
+                        print(player_selected_fighters)
+                        print(enemy_selected_fighters)
+            # 4 for three rounds, becase we start with 2
+            if round_counter == 4:
+                for fighter_1, fighter_2, advantage in zip(player_selected_fighters, enemy_selected_fighters, round_advantages):
+                    try:
+                        choose_ai = lambda f: f.ai_primary if f.selected_ai == 'primary' else f.ai_secondary
+                        data = (fighter_1.name, fighter_2.name, fighter_1.level, fighter_2.level, fighter_1.attributes, fighter_2.attributes, choose_ai(fighter_1), fighter_2.ai_primary, advantage)
+                        cursor.execute('INSERT INTO ai_battle_log_full (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes,fighter_1_ai, fighter_2_ai, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', data)
                         print('Database record added')
                     except:
                         print(player_selected_fighters)
                         print(enemy_selected_fighters)
-            else:
-                for fighter_1, fighter_2 in zip(player_selected_fighters, enemy_selected_fighters):
-                    try:
-                        choose_ai = lambda f: f.ai_primary if f.selected_ai == 'primary' else f.ai_secondary
-                        data = (fighter_1.name, fighter_2.name, fighter_1.level, fighter_2.level, fighter_1.attributes, fighter_2.attributes, choose_ai(fighter_1), fighter_2.ai_primary)
-                        cursor.execute('INSERT INTO ai_battle_log_full (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes,fighter_1_ai, fighter_2_ai) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', data)
-                        print('Database record added')
-                    except:
-                        print(player_selected_fighters)
-                        print(enemy_selected_fighters)
+
 
             conn.commit()
 
@@ -493,6 +504,8 @@ while True:
         enemy_selected_fighters = [None, None, None]
         round_buffer = []
         round_counter = 1
+        round_advantages = []
+
 
 
     end_time = time.time()
