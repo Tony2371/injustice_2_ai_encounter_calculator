@@ -20,6 +20,56 @@ def generate_random_ai_loadout():
 
     return numbers
 
+def fighter_one_hot(name):
+    fighter_indices = {
+        'aquaman': 0,
+        'atom': 1,
+        'atrocitus': 2,
+        'bane': 3,
+        'batman': 4,
+        'black_adam': 5,
+        'black_canary': 6,
+        'black_manta': 7,
+        'blue_beetle': 8,
+        'brainiac': 9,
+        'captain_cold': 10,
+        'catwoman': 11,
+        'cheetah': 12,
+        'cyborg': 13,
+        'darkseid': 14,
+        'deadshot': 15,
+        'doctor_fate': 16,
+        'enchantress': 17,
+        'firestorm': 18,
+        'flash': 19,
+        'gorilla_grodd': 20,
+        'green_arrow': 21,
+        'green_lantern': 22,
+        'harley_quinn': 23,
+        'hellboy': 24,
+        'joker': 25,
+        'poison_ivy': 26,
+        'raiden': 27,
+        'red_hood': 28,
+        'robin': 29,
+        'scarecrow': 30,
+        'starfire': 31,
+        'subzero': 32,
+        'supergirl': 33,
+        'superman': 34,
+        'swamp_thing': 35,
+        'tmnt': 36,
+        'wonder_woman': 37,
+        'not_selected': 38
+    }
+
+    fighter_indices.pop('not_selected')
+    num_classes = len(fighter_indices)
+    one_hot_dict = {key: F.one_hot(torch.tensor([value]), num_classes=num_classes) for key, value in
+                    fighter_indices.items()}
+    return one_hot_dict[name]
+
+
 def fighter_indices(fighter_name=None, fighter_index=None):
     fighter_indices = {
         'aquaman': 0,
@@ -62,6 +112,7 @@ def fighter_indices(fighter_name=None, fighter_index=None):
         'wonder_woman': 37,
         'not_selected': 38
     }
+
     if fighter_index is None:
         return fighter_indices[fighter_name]
     if fighter_name is None:
@@ -71,6 +122,15 @@ def fighter_indices(fighter_name=None, fighter_index=None):
 
 def linear_interpolation(value, input_min, input_max, output_range_min, output_range_max):
     return output_range_min + (value - input_min) * ((output_range_max - output_range_min) / (input_max - input_min))
+
+def normalize_list(lst, min_max_range = None):
+    if min_max_range != None:
+        min_val = min_max_range[0]
+        max_val = min_max_range[1]
+    else:
+        min_val = min(lst)
+        max_val = max(lst)
+    return [(x - min_val) / (max_val - min_val) for x in lst]
 
 def similarity(image_1, image_2):
     image_1 = cv2.cvtColor(image_1, cv2.COLOR_BGR2GRAY)
@@ -91,14 +151,56 @@ def template_matching(image_input, template_folder, resize=None):
             matched_output = f[len(template_folder)+1:].replace('.png', '')
     return matched_output, similarity
 
-def flattened_masked_image(image, mask_path):
-    pixel_indices = np.nonzero(cv2.imread(mask_path, 0).flatten())[0]
-    blue_channel = image[:, :, 0].flatten()[pixel_indices]
-    green_channel = image[:, :, 1].flatten()[pixel_indices]
-    red_channel = image[:, :, 2].flatten()[pixel_indices]
-    normalized_image = np.concatenate((blue_channel / 255, green_channel / 255, red_channel / 255))
-    return normalized_image
+def tensorize_db_record(db_input_list, min_attr_value, max_attr_value):
 
+    fighter_1_name = fighter_one_hot(db_input_list[0]).flatten()
+    fighter_2_name = fighter_one_hot(db_input_list[1]).flatten()
+
+    fighter_1_level = torch.tensor([db_input_list[2]/30])
+    fighter_2_level = torch.tensor([db_input_list[3]/30])
+
+    fighter_1_attributes_not_norm = [int(n.replace('[', '').replace(']', '')) for n in db_input_list[4].split(',')]
+    fighter_1_attributes = torch.tensor(normalize_list(fighter_1_attributes_not_norm, min_max_range=(min_attr_value, max_attr_value)))
+    fighter_2_attributes_not_norm = [int(n.replace('[', '').replace(']', '')) for n in db_input_list[5].split(',')]
+    fighter_2_attributes = torch.tensor(normalize_list(fighter_2_attributes_not_norm, min_max_range=(min_attr_value, max_attr_value)))
+
+    fighter_1_ai = torch.tensor([int(n.replace('[', '').replace(']', ''))/30 for n in db_input_list[6].split(',')])
+    fighter_2_ai = torch.tensor([int(n.replace('[', '').replace(']', ''))/30 for n in db_input_list[7].split(',')])
+
+    advantage = torch.tensor([db_input_list[8]])
+
+
+    output = torch.cat([fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes, fighter_1_ai, fighter_2_ai, advantage])
+
+    return output.flatten()
+
+def tensorize_db_record_inverted(db_input_list, min_attr_value, max_attr_value):
+
+    fighter_2_name = fighter_one_hot(db_input_list[0]).flatten()
+    fighter_1_name = fighter_one_hot(db_input_list[1]).flatten()
+
+    fighter_2_level = torch.tensor([db_input_list[2] / 30])
+    fighter_1_level = torch.tensor([db_input_list[3] / 30])
+
+    fighter_2_attributes_not_norm = [int(n.replace('[', '').replace(']', '')) for n in db_input_list[4].split(',')]
+    fighter_2_attributes = torch.tensor(
+        normalize_list(fighter_2_attributes_not_norm, min_max_range=(min_attr_value, max_attr_value)))
+    fighter_1_attributes_not_norm = [int(n.replace('[', '').replace(']', '')) for n in db_input_list[5].split(',')]
+    fighter_1_attributes = torch.tensor(
+        normalize_list(fighter_1_attributes_not_norm, min_max_range=(min_attr_value, max_attr_value)))
+
+    fighter_2_ai = torch.tensor(
+        [int(n.replace('[', '').replace(']', '')) / 30 for n in db_input_list[6].split(',')])
+    fighter_1_ai = torch.tensor(
+        [int(n.replace('[', '').replace(']', '')) / 30 for n in db_input_list[7].split(',')])
+
+    advantage = torch.tensor([db_input_list[8] * -1])
+
+    output = torch.cat(
+        [fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes,
+         fighter_1_ai, fighter_2_ai, advantage])
+
+    return output.flatten()
 
 class ModelDigitRecognition(nn.Module):
     def __init__(self):
@@ -148,10 +250,10 @@ class ModelHpTrack(nn.Module):
         x = x.view(x.size(0), -1)
 
         # Apply FC layers with activation
-        x = self.dropout(x)
         x = self.mish(self.fc1(x))
         x = self.dropout(x)
         x = self.mish(self.fc2(x))
+        x = self.dropout(x)
         x = self.mish(self.fc3(x))
         x = self.fc_output(x)  # Apply fc3
         return x
@@ -163,7 +265,7 @@ class ModelFighterRecognition(nn.Module):
         # Fully connected layers
         self.fc1 = nn.Linear(19200, 512) #19200 IS 80x80 images with 3 channels
         self.fc2 = nn.Linear(512, 512)
-        self.fc3 = nn.Linear(512, 39)  # 1 output for regression problem
+        self.fc3 = nn.Linear(512, 39)
         self.mish = nn.Mish()
 
     def forward(self, x):
@@ -175,12 +277,32 @@ class ModelFighterRecognition(nn.Module):
         x = self.fc3(x)  # Apply fc3
         return x
 
+class ModelAdvantage(nn.Module):
+    def __init__(self):
+        super(ModelAdvantage, self).__init__()
+
+        # Fully connected layers
+        self.fc1 = nn.Linear(98, 256)
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, 1)
+        self.mish = nn.Mish()
+        self.dropout = nn.Dropout(0.2)
+
+    def forward(self, x):
+        x = x.view(x.size(0), -1)
+        x = x.float()
+        x = self.mish(self.fc1(x))
+        x = self.dropout(x)
+        x = self.mish(self.fc2(x))
+        x = self.dropout(x)
+        x = torch.tanh(self.fc3(x))
+        return x
 
 class Row():
-    def __init__(self, image, index):
+    def __init__(self, index):
         self.characters = [None, None, None]
         self.levels = [None, None, None]
-        self.image = image
+
         self.index = index
 
 class Fighter():
