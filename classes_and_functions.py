@@ -6,19 +6,7 @@ import glob
 import cv2
 from skimage.metrics import structural_similarity as ssim
 import random
-
-def generate_random_ai_loadout():
-    numbers = [0 for i in range(6)]
-    remainder = 60
-    for i in range(6):
-        max_value = min(remainder - (5 - i), 30)
-        num = random.randint(0, max_value)
-        remainder -= num
-        numbers[i] = num
-    numbers[-1] += remainder
-    random.shuffle(numbers)
-
-    return numbers
+from colorama import Fore, Style
 
 def fighter_one_hot(name):
     fighter_indices = {
@@ -202,6 +190,66 @@ def tensorize_db_record_inverted(db_input_list, min_attr_value, max_attr_value):
 
     return output.flatten()
 
+def score_encounter_predictions(advantage_list):
+    print('Advantage_list ', advantage_list)
+    p = normalize_list(advantage_list, min_max_range=(-1, 1))
+    print('Normalized list:', p)
+    # check if the length of the list is 3
+    if len(p) != 3:
+        raise ValueError("The list must contain exactly three probabilities.")
+
+    # check if probabilities are valid (between 0 and 1)
+    for prob in p:
+        if prob < 0 or prob > 1:
+            raise ValueError("All probabilities must be between 0 and 1.")
+
+    # calculate victory conditions
+    # first and second event are successful
+    p1_2 = p[0] * p[1]
+    # first and third event are successful, second event fails
+    p1_3 = p[0] * (1 - p[1]) * p[2]
+    # first event fails, second and third event are successful
+    p2_3 = (1 - p[0]) * p[1] * p[2]
+
+    # sum of probabilities
+    total_p = p1_2 + p1_3 + p2_3
+
+    return round(total_p, 3)
+
+def print_prediction(input_dict):
+    vs_1_1 = str(input_dict["player_fighter_1_name"])+" "+str(input_dict["player_fighter_1_level"])+" "+str(input_dict["player_ai_1"])
+    vs_1_2 = str(input_dict["opponent_fighter_1_name"])+" "+str(input_dict["opponent_fighter_1_level"])
+    advantage_1 = round(input_dict["advantage_1"], 3)
+    if len(vs_1_1) < 25:
+        vs_1_1 += ' '*(25-len(vs_1_1))
+    if len(vs_1_2) < 15:
+        vs_1_2 += ' '*(15-len(vs_1_2))
+
+    vs_2_1 = str(input_dict["player_fighter_2_name"]) + " " + str(input_dict["player_fighter_2_level"]) + " " + str(
+        input_dict["player_ai_2"])
+    vs_2_2 = str(input_dict["opponent_fighter_2_name"]) + " " + str(input_dict["opponent_fighter_2_level"])
+    advantage_2 = round(input_dict["advantage_2"], 3)
+    if len(vs_2_1) < 25:
+        vs_2_1 += ' ' * (25 - len(vs_2_1))
+    if len(vs_2_2) < 15:
+        vs_2_2 += ' ' * (15 - len(vs_2_2))
+
+    vs_3_1 = str(input_dict["player_fighter_3_name"]) + " " + str(input_dict["player_fighter_3_level"]) + " " + str(
+        input_dict["player_ai_1"])
+    vs_3_2 = str(input_dict["opponent_fighter_3_name"]) + " " + str(input_dict["opponent_fighter_3_level"])
+    advantage_3 = round(input_dict["advantage_3"], 3)
+    if len(vs_3_1) < 25:
+        vs_3_1 += ' ' * (25 - len(vs_3_1))
+    if len(vs_3_2) < 15:
+        vs_3_2 += ' ' * (15 - len(vs_3_2))
+
+
+    print(Fore.LIGHTBLUE_EX+f'Win chance: {input_dict["score"]}'+Style.RESET_ALL)
+    print(vs_1_1 + ' vs.   ' + vs_1_2 + "  |  " + f'Advantage: {advantage_1}')
+    print(vs_2_1 + ' vs.   ' + vs_2_2 + "  |  " + f'Advantage: {advantage_2}')
+    print(vs_3_1 + ' vs.   ' + vs_3_2 + "  |  " + f'Advantage: {advantage_3}')
+    print(Fore.LIGHTGREEN_EX+'-'*10+Style.RESET_ALL)
+
 class ModelDigitRecognition(nn.Module):
     def __init__(self):
         super(ModelDigitRecognition, self).__init__()
@@ -305,6 +353,7 @@ class Row():
 
         self.index = index
 
+
 class Fighter():
     def __init__(self, name, level, ai_primary=None, ai_secondary=None, attributes=None):
         self.name = name
@@ -313,34 +362,5 @@ class Fighter():
         self.ai_secondary = ai_secondary
         self.selected_ai = 'primary'
         self.attributes = attributes
-
-class Encounter_group():
-    def __init__(self, group, model, fighter_indices):
-        self.encounter_1 = group[0]
-        self.encounter_2 = group[1]
-        self.encounter_3 = group[2]
-
-        neural_input_1 = torch.tensor(
-            [list(fighter_indices).index(self.encounter_1[0].name), self.encounter_1[0].level / 30,
-             list(fighter_indices).index(self.encounter_1[1].name), self.encounter_1[1].level / 30])
-        self.encounter_1_win_chance = round(model(neural_input_1).item(), 3)
-
-        neural_input_2 = torch.tensor(
-            [list(fighter_indices).index(self.encounter_2[0].name), self.encounter_2[0].level / 30,
-             list(fighter_indices).index(self.encounter_2[1].name), self.encounter_2[1].level / 30])
-        self.encounter_2_win_chance = round(model(neural_input_2).item(), 3)
-
-        neural_input_3 = torch.tensor(
-            [list(fighter_indices).index(self.encounter_3[0].name), self.encounter_3[0].level / 30,
-             list(fighter_indices).index(self.encounter_3[1].name), self.encounter_3[1].level / 30])
-        self.encounter_3_win_chance = round(model(neural_input_3).item(), 3)
-
-        #TOTAL GROUP WIN CHANCE
-        prob_win_case1 = self.encounter_1_win_chance * self.encounter_2_win_chance
-        prob_win_case2 = (1 - self.encounter_1_win_chance) * self.encounter_2_win_chance * self.encounter_3_win_chance
-        prob_win_case3 = self.encounter_1_win_chance * (1 - self.encounter_2_win_chance) * self.encounter_3_win_chance
-        self.total_prob_win = prob_win_case1 + prob_win_case2 + prob_win_case3
-        self.total_prob_win = round(self.total_prob_win, 3)
-
 
 
