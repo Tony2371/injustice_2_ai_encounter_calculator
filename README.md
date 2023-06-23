@@ -8,7 +8,7 @@ Modules description:
 Module contains classes, funtions and variables used in other modules of the project.
 
 - fighter_one_hot
-Function takes fighter_name as an input and returns pytorch tensor which is one-hot numeric representation of the fighter.
+Function takes fighter_name as an input and returns pytorch tensor which is one-hot numeric representation of the fighter.\n
 
 - fighter_indices
 If input is fighter's name, function returns index of the fighter. If input is index, function returns name of the fighter
