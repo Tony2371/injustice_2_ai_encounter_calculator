@@ -7,20 +7,20 @@ Modules description:
 **classes_and_functions.py**
 Module contains classes, funtions and variables used in other modules of the project.
 
-    _fighter_one_hot_
-    Function takes fighter_name as an input and returns pytorch tensor which is one-hot numeric representation of the fighter.
+- fighter_one_hot
+Function takes fighter_name as an input and returns pytorch tensor which is one-hot numeric representation of the fighter.
 
-    _fighter_indices_
-    If input is fighter's name, function returns index of the fighter. If input is index, function returns name of the fighter
+fighter_indices
+If input is fighter's name, function returns index of the fighter. If input is index, function returns name of the fighter
 
-    _linear_interpolation_
-    Simple linear interpolation. Currently not used.
+linear_interpolation
+Simple linear interpolation. Currently not used.
 
-    _normalize_list_
-    Normalizes input list to the range from 0 to 1. By default, it takes min and max values from the list, but range can be set manually.
+normalize_list
+Normalizes input list to the range from 0 to 1. By default, it takes min and max values from the list, but range can be set manually.
 
-    _similarity_
-    Function takes two images (imported with openCV before passing to the function) and returns a normalized value of how these images
+similarity
+Function takes two images (imported with openCV before passing to the function) and returns a normalized value of how these images
 
-    _template_matching_
-    Function matches the image with the batch of images in the selected folder and returns the name and the value of best correspondence. Inout image can be optionally resized.
+template_matching
+Function matches the image with the batch of images in the selected folder and returns the name and the value of best correspondence. Inout image can be optionally resized.
