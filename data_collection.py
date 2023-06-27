@@ -27,8 +27,8 @@ round_advantages = []
 round_started = False
 round_ended = False
 player_selected_fighters = [None, None, None]
-enemy_selected_fighters = [None, None, None]
-
+opponent_selected_fighters = [None, None, None]
+attributes_norm_range = (900, 6000)
 
 nn_hp_track = ModelHpTrack()
 nn_hp_track.load_state_dict(torch.load('nn_weights/weights_hp_track.pth'))
@@ -53,44 +53,30 @@ template_player_fighter_selection = cv2.imread('images/template_player_fighter_s
 template_defending_team = cv2.imread('images/defending_team.png')
 template_empty_digit = cv2.imread('images/template_empty_digit.png')
 
-# Open the file in read mode
+
+player_dicts = []
 with open('player_fighters.txt', 'r') as f:
-    # Use a list comprehension to read each line and parse it as a dictionary
-    player_dicts = [ast.literal_eval(line) for line in f if '#' not in line]
+    for line in f:
+        line = line.strip()  # Removes leading/trailing whitespace (including newlines)
+        if line and '#' not in line:  # Checks if line is not empty and doesn't start with '#'
+            try:
+                player_dict = ast.literal_eval(line)
+                player_dicts.append(player_dict)
+            except (SyntaxError, ValueError) as e:
+                print(f"Error parsing line: {line}. Error: {str(e)}")
 
 
-player_fighter_1 = Fighter(name=player_dicts[0]['name'],
-                           level=player_dicts[0]['level'],
-                           ai_primary=player_dicts[0]['ai_primary'],
-                           ai_secondary=player_dicts[0]['ai_secondary'],
-                           attributes=player_dicts[0]['attributes'])
-player_fighter_2 = Fighter(name=player_dicts[1]['name'],
-                           level=player_dicts[1]['level'],
-                           ai_primary=player_dicts[1]['ai_primary'],
-                           ai_secondary=player_dicts[1]['ai_secondary'],
-                           attributes=player_dicts[1]['attributes'])
-player_fighter_3 = Fighter(name=player_dicts[2]['name'],
-                           level=player_dicts[2]['level'],
-                           ai_primary=player_dicts[2]['ai_primary'],
-                           ai_secondary=player_dicts[2]['ai_secondary'],
-                           attributes=player_dicts[2]['attributes'])
-player_fighter_4 = Fighter(name=player_dicts[3]['name'],
-                           level=player_dicts[3]['level'],
-                           ai_primary=player_dicts[3]['ai_primary'],
-                           ai_secondary=player_dicts[3]['ai_secondary'],
-                           attributes=player_dicts[3]['attributes'])
-player_fighter_5 = Fighter(name=player_dicts[4]['name'],
-                           level=player_dicts[4]['level'],
-                           ai_primary=player_dicts[4]['ai_primary'],
-                           ai_secondary=player_dicts[4]['ai_secondary'],
-                           attributes=player_dicts[4]['attributes'])
-player_fighter_6 = Fighter(name=player_dicts[5]['name'],
-                           level=player_dicts[5]['level'],
-                           ai_primary=player_dicts[5]['ai_primary'],
-                           ai_secondary=player_dicts[5]['ai_secondary'],
-                           attributes=player_dicts[5]['attributes'])
 
-player_fighters = [player_fighter_1, player_fighter_2, player_fighter_3, player_fighter_4, player_fighter_5, player_fighter_6]
+player_fighters = []
+for dict in player_dicts:
+    player_fighters.append(Fighter(name=dict['name'],
+                                   level=dict['level'],
+                                   ai_primary=dict['ai_primary'],
+                                   ai_secondary=dict['ai_secondary'],
+                                   attributes=dict['attributes']))
+
+#player_fighters = [player_fighter_1, player_fighter_3, player_fighter_4, player_fighter_5, player_fighter_6]
+#player_fighters =  [player_fighter_1, player_fighter_2, player_fighter_3, player_fighter_4, player_fighter_5, player_fighter_6]
 
 player_fighters_permutations = list(itertools.permutations(player_fighters, 3))
 
@@ -121,7 +107,7 @@ while True:
         zone_end_match_2 = screen_image[770:805, 1286:1351]
 
         # OPPONENT AI STATS PARSING ZONE
-        if None in enemy_selected_fighters:
+        if None in opponent_selected_fighters:
             if similarity(template_defending_team, screen_image[597:626, 1713:1901]) > 0.85:
                 time.sleep(0.3)
                 zone_opponent_1 = screen_image[291:291 + 80, 1425:1425 + 80]
@@ -132,7 +118,7 @@ while True:
                 opponent_recognition_2 = nn_fighter_recognition(torch.tensor(zone_opponent_2 / 255))
                 opponent_recognition_3 = nn_fighter_recognition(torch.tensor(zone_opponent_3 / 255))
 
-                enemy_selected_fighters = [Fighter(name=fighter_indices(fighter_index=torch.argmax(opponent_recognition_1).item()), level=1),
+                opponent_selected_fighters = [Fighter(name=fighter_indices(fighter_index=torch.argmax(opponent_recognition_1).item()), level=1),
                                             Fighter(name=fighter_indices(fighter_index=torch.argmax(opponent_recognition_2).item()), level=1),
                                             Fighter(name=fighter_indices(fighter_index=torch.argmax(opponent_recognition_3).item()), level=1)]
 
@@ -157,19 +143,19 @@ while True:
 
 
                 if torch.max(opponent_1_level_recognition_2).item() < 6:
-                    enemy_selected_fighters[0].level = torch.argmax(opponent_1_level_recognition_1).item()
+                    opponent_selected_fighters[0].level = torch.argmax(opponent_1_level_recognition_1).item()
                 else:
-                    enemy_selected_fighters[0].level = int(str(torch.argmax(opponent_1_level_recognition_1).item())+str(torch.argmax(opponent_1_level_recognition_2).item()))
+                    opponent_selected_fighters[0].level = int(str(torch.argmax(opponent_1_level_recognition_1).item())+str(torch.argmax(opponent_1_level_recognition_2).item()))
 
                 if torch.max(opponent_2_level_recognition_2).item() < 6:
-                    enemy_selected_fighters[1].level = torch.argmax(opponent_2_level_recognition_1).item()
+                    opponent_selected_fighters[1].level = torch.argmax(opponent_2_level_recognition_1).item()
                 else:
-                    enemy_selected_fighters[1].level = int(str(torch.argmax(opponent_2_level_recognition_1).item())+str(torch.argmax(opponent_2_level_recognition_2).item()))
+                    opponent_selected_fighters[1].level = int(str(torch.argmax(opponent_2_level_recognition_1).item())+str(torch.argmax(opponent_2_level_recognition_2).item()))
 
                 if torch.max(opponent_3_level_recognition_2).item() < 6:
-                    enemy_selected_fighters[2].level = torch.argmax(opponent_3_level_recognition_1).item()
+                    opponent_selected_fighters[2].level = torch.argmax(opponent_3_level_recognition_1).item()
                 else:
-                    enemy_selected_fighters[2].level = int(str(torch.argmax(opponent_3_level_recognition_1).item())+str(torch.argmax(opponent_3_level_recognition_2).item()))
+                    opponent_selected_fighters[2].level = int(str(torch.argmax(opponent_3_level_recognition_1).item())+str(torch.argmax(opponent_3_level_recognition_2).item()))
 
 
 
@@ -182,16 +168,16 @@ while True:
 
 
 
-                print([f.level for f in enemy_selected_fighters])
+                print([f.level for f in opponent_selected_fighters])
 
 
         zone_ai_parsing_icon = screen_image[140:170, 1870:1905]
         mask_zone_ai_parsing = cv2.inRange(zone_ai_parsing_icon, lowerb=(174, 172, 158), upperb=(174, 172, 158))
 
-        if cv2.countNonZero(mask_zone_ai_parsing) == 94 and None not in enemy_selected_fighters:
+        if cv2.countNonZero(mask_zone_ai_parsing) == 94 and None not in opponent_selected_fighters:
             fighter_name_zone = screen_image[146:172, 1620:1820]
             character, _ = template_matching(fighter_name_zone, 'template_opponent_fighter_names')
-            for fighter in enemy_selected_fighters:
+            for fighter in opponent_selected_fighters:
                 if fighter.name == character:
                     # GRAPPLING STAT DETECTION
                     grappling_value_1 = "_"
@@ -369,25 +355,37 @@ while True:
 
                     fighter.attributes = f'[{strength},{ability},{defense},{health_points}]'
                     print(fighter.attributes)
+                    print(fighter.ai_primary)
+                    print('---')
 
+                    # OPPONENT ABILITIES PARSING ZONE
+                    fighter.ability_1 = screen_image[418:418 + 40, 1475:1475 + 360]
+                    fighter.ability_2 = screen_image[463:463 + 40, 1475:1475 + 360]
+                    fighter.augment = screen_image[508:508 + 40, 1475:1475 + 360]
+                    
+                    
+
+
+        best_encounters = []
         if launch_calculation:
             print('Calculating best outcome...')
             encounter_tracker = {
                 'score': 0
             }
+
             for player_row in player_fighters_permutations:
-                input_list_1_primary = [player_row[0].name, enemy_selected_fighters[0].name, player_row[0].level,
-                                        enemy_selected_fighters[0].level, player_row[0].attributes, enemy_selected_fighters[0].attributes,
-                                        player_row[0].ai_primary, enemy_selected_fighters[0].ai_primary, 0]
-                input_list_1_secondary = [player_row[0].name, enemy_selected_fighters[0].name, player_row[0].level,
-                                          enemy_selected_fighters[0].level, player_row[0].attributes, enemy_selected_fighters[0].attributes,
-                                          player_row[0].ai_secondary, enemy_selected_fighters[0].ai_primary, 0]
+                input_list_1_primary = [player_row[0].name, opponent_selected_fighters[0].name, player_row[0].level,
+                                        opponent_selected_fighters[0].level, player_row[0].attributes, opponent_selected_fighters[0].attributes,
+                                        player_row[0].ai_primary, opponent_selected_fighters[0].ai_primary, 0]
+                input_list_1_secondary = [player_row[0].name, opponent_selected_fighters[0].name, player_row[0].level,
+                                          opponent_selected_fighters[0].level, player_row[0].attributes, opponent_selected_fighters[0].attributes,
+                                          player_row[0].ai_secondary, opponent_selected_fighters[0].ai_primary, 0]
 
                 prediction_1_primary = nn_advantage(
-                    tensorize_db_record(input_list_1_primary, min_attr_value=891, max_attr_value=5963)[:98].unsqueeze(
+                    tensorize_db_record(input_list_1_primary, min_attr_value=attributes_norm_range[0], max_attr_value=attributes_norm_range[1])[:98].unsqueeze(
                         0)).item()
                 prediction_1_secondary = nn_advantage(
-                    tensorize_db_record(input_list_1_secondary, min_attr_value=891, max_attr_value=5963)[:98].unsqueeze(
+                    tensorize_db_record(input_list_1_secondary, min_attr_value=attributes_norm_range[0], max_attr_value=attributes_norm_range[1])[:98].unsqueeze(
                         0)).item()
 
                 if prediction_1_secondary > prediction_1_primary:
@@ -397,19 +395,19 @@ while True:
                     prediction_1 = prediction_1_primary
                     selected_ai_1 = 'primary'
 
-                input_list_2_primary = [player_row[1].name, enemy_selected_fighters[1].name, player_row[1].level,
-                                        enemy_selected_fighters[1].level,
-                                        player_row[1].attributes, enemy_selected_fighters[1].attributes, player_row[1].ai_primary,
-                                        enemy_selected_fighters[1].ai_primary, 0]
-                input_list_2_secondary = [player_row[1].name, enemy_selected_fighters[1].name, player_row[1].level,
-                                          enemy_selected_fighters[1].level, player_row[1].attributes, enemy_selected_fighters[1].attributes,
-                                          player_row[1].ai_secondary, enemy_selected_fighters[1].ai_primary, 0]
+                input_list_2_primary = [player_row[1].name, opponent_selected_fighters[1].name, player_row[1].level,
+                                        opponent_selected_fighters[1].level,
+                                        player_row[1].attributes, opponent_selected_fighters[1].attributes, player_row[1].ai_primary,
+                                        opponent_selected_fighters[1].ai_primary, 0]
+                input_list_2_secondary = [player_row[1].name, opponent_selected_fighters[1].name, player_row[1].level,
+                                          opponent_selected_fighters[1].level, player_row[1].attributes, opponent_selected_fighters[1].attributes,
+                                          player_row[1].ai_secondary, opponent_selected_fighters[1].ai_primary, 0]
 
                 prediction_2_primary = nn_advantage(
-                    tensorize_db_record(input_list_2_primary, min_attr_value=891, max_attr_value=5963)[:98].unsqueeze(
+                    tensorize_db_record(input_list_2_primary, min_attr_value=attributes_norm_range[0], max_attr_value=attributes_norm_range[1])[:98].unsqueeze(
                         0)).item()
                 prediction_2_secondary = nn_advantage(
-                    tensorize_db_record(input_list_2_secondary, min_attr_value=891, max_attr_value=5963)[:98].unsqueeze(
+                    tensorize_db_record(input_list_2_secondary, min_attr_value=attributes_norm_range[0], max_attr_value=attributes_norm_range[1])[:98].unsqueeze(
                         0)).item()
 
                 if prediction_2_secondary > prediction_2_primary:
@@ -419,19 +417,19 @@ while True:
                     prediction_2 = prediction_2_primary
                     selected_ai_2 = 'primary'
 
-                input_list_3_primary = [player_row[2].name, enemy_selected_fighters[2].name, player_row[2].level,
-                                        enemy_selected_fighters[2].level,
-                                        player_row[2].attributes, enemy_selected_fighters[2].attributes, player_row[2].ai_primary,
-                                        enemy_selected_fighters[2].ai_primary, 0]
-                input_list_3_secondary = [player_row[2].name, enemy_selected_fighters[2].name, player_row[2].level,
-                                          enemy_selected_fighters[2].level, player_row[2].attributes, enemy_selected_fighters[2].attributes,
-                                          player_row[2].ai_secondary, enemy_selected_fighters[2].ai_primary, 0]
+                input_list_3_primary = [player_row[2].name, opponent_selected_fighters[2].name, player_row[2].level,
+                                        opponent_selected_fighters[2].level,
+                                        player_row[2].attributes, opponent_selected_fighters[2].attributes, player_row[2].ai_primary,
+                                        opponent_selected_fighters[2].ai_primary, 0]
+                input_list_3_secondary = [player_row[2].name, opponent_selected_fighters[2].name, player_row[2].level,
+                                          opponent_selected_fighters[2].level, player_row[2].attributes, opponent_selected_fighters[2].attributes,
+                                          player_row[2].ai_secondary, opponent_selected_fighters[2].ai_primary, 0]
 
                 prediction_3_primary = nn_advantage(
-                    tensorize_db_record(input_list_3_primary, min_attr_value=891, max_attr_value=5963)[:98].unsqueeze(
+                    tensorize_db_record(input_list_3_primary, min_attr_value=attributes_norm_range[0], max_attr_value=attributes_norm_range[1])[:98].unsqueeze(
                         0)).item()
                 prediction_3_secondary = nn_advantage(
-                    tensorize_db_record(input_list_3_secondary, min_attr_value=891, max_attr_value=5963)[:98].unsqueeze(
+                    tensorize_db_record(input_list_3_secondary, min_attr_value=attributes_norm_range[0], max_attr_value=attributes_norm_range[1])[:98].unsqueeze(
                         0)).item()
 
                 if prediction_3_secondary > prediction_3_primary:
@@ -447,24 +445,26 @@ while True:
                     encounter_tracker['score'] = score
                     encounter_tracker['player_fighter_1_name'] = player_row[0].name
                     encounter_tracker['player_fighter_1_level'] = player_row[0].level
-                    encounter_tracker['opponent_fighter_1_name'] = enemy_selected_fighters[0].name
-                    encounter_tracker['opponent_fighter_1_level'] = enemy_selected_fighters[0].level
+                    encounter_tracker['opponent_fighter_1_name'] = opponent_selected_fighters[0].name
+                    encounter_tracker['opponent_fighter_1_level'] = opponent_selected_fighters[0].level
                     encounter_tracker['player_ai_1'] = selected_ai_1
                     encounter_tracker['advantage_1'] = prediction_1
 
                     encounter_tracker['player_fighter_2_name'] = player_row[1].name
                     encounter_tracker['player_fighter_2_level'] = player_row[1].level
-                    encounter_tracker['opponent_fighter_2_name'] = enemy_selected_fighters[1].name
-                    encounter_tracker['opponent_fighter_2_level'] = enemy_selected_fighters[1].level
+                    encounter_tracker['opponent_fighter_2_name'] = opponent_selected_fighters[1].name
+                    encounter_tracker['opponent_fighter_2_level'] = opponent_selected_fighters[1].level
                     encounter_tracker['player_ai_2'] = selected_ai_2
                     encounter_tracker['advantage_2'] = prediction_2
 
                     encounter_tracker['player_fighter_3_name'] = player_row[2].name
                     encounter_tracker['player_fighter_3_level'] = player_row[2].level
-                    encounter_tracker['opponent_fighter_3_name'] = enemy_selected_fighters[2].name
-                    encounter_tracker['opponent_fighter_3_level'] = enemy_selected_fighters[2].level
+                    encounter_tracker['opponent_fighter_3_name'] = opponent_selected_fighters[2].name
+                    encounter_tracker['opponent_fighter_3_level'] = opponent_selected_fighters[2].level
                     encounter_tracker['player_ai_3'] = selected_ai_3
                     encounter_tracker['advantage_3'] = prediction_3
+
+
             print_prediction(encounter_tracker)
             launch_calculation = False
 
@@ -474,14 +474,23 @@ while True:
             for fighter in player_fighters:
                 if fighter.name == template_matching(screen_image[0:44, 0:300], 'player_fighter_names')[0]:
                     current_selected_fighter = fighter.name
+
             if similarity(screen_image[148:173, 78:250], template_ai_secondary) >= 0.85:
                 for f in player_fighters:
                     if f.name == current_selected_fighter:
+                        f.ability_1 = screen_image[418:418 + 40, 20:20 + 360]
+                        f.ability_2 = screen_image[463:463 + 40, 20:20 + 360]
+                        f.augment = screen_image[508:508 + 40, 20:20 + 360]
                         f.selected_ai = 'secondary'
+                        
             if similarity(screen_image[148:173, 78:250], template_ai_primary) >= 0.85:
                 for f in player_fighters:
                     if f.name == current_selected_fighter:
                         f.selected_ai = 'primary'
+                        f.ability_1 = screen_image[418:418 + 40, 20:20 + 360]
+                        f.ability_2 = screen_image[463:463 + 40, 20:20 + 360]
+                        f.augment = screen_image[508:508 + 40, 20:20 + 360]
+
 
             zone_player_1 = screen_image[311:311+80, 116:116+80]
             zone_player_2 = screen_image[311:311+80, 287:287+80]
@@ -499,11 +508,24 @@ while True:
                 selection_2 = fighter_indices(fighter_index=torch.argmax(player_recognition_2).item())
                 if selection_2 != 'not_selected' and len([f for f in player_fighters if f.name == selection_2]) > 0:
                     player_selected_fighters[1] = [f for f in player_fighters if f.name == selection_2][0]
+
+            # SELECTION CONFIRMATION
             if cv2.countNonZero(cv2.inRange(screen_image[600:650, 1380:1430], lowerb=(0, 0, 0), upperb=(10, 10, 10))) >= 200:
                 selection_3 = template_matching(screen_image[0:44, 0:300], 'player_fighter_names')[0]
                 player_selected_fighters[2] = [f for f in player_fighters if f.name == selection_3][0]
                 if None not in player_selected_fighters:
+                    player_1_abilities = cv2.vconcat([player_selected_fighters[0].ability_1, player_selected_fighters[0].ability_2, player_selected_fighters[0].augment])
+                    player_2_abilities = cv2.vconcat([player_selected_fighters[1].ability_1, player_selected_fighters[1].ability_2, player_selected_fighters[1].augment])
+                    player_3_abilities = cv2.vconcat([player_selected_fighters[2].ability_1, player_selected_fighters[2].ability_2, player_selected_fighters[2].augment])
+                    player_abilities = cv2.vconcat([player_1_abilities, player_2_abilities, player_3_abilities])
+                    
+                    opponent_1_abilities = cv2.vconcat([opponent_selected_fighters[0].ability_1, opponent_selected_fighters[0].ability_2, opponent_selected_fighters[0].augment])
+                    opponent_2_abilities = cv2.vconcat([opponent_selected_fighters[1].ability_1, opponent_selected_fighters[1].ability_2, opponent_selected_fighters[1].augment])
+                    opponent_3_abilities = cv2.vconcat([opponent_selected_fighters[2].ability_1, opponent_selected_fighters[2].ability_2, opponent_selected_fighters[2].augment])
+                    opponent_abilities = cv2.vconcat([opponent_1_abilities, opponent_2_abilities, opponent_3_abilities])
+
                     print([(f.name, f.selected_ai) for f in player_selected_fighters])
+
 
         # ROUND IN PROGRESS
         zone_round_left = screen_image[60:80, 927:937]
@@ -556,29 +578,32 @@ while True:
         mask_end_2 = cv2.inRange(zone_end_match_2, lowerb=(82, 64, 49), upperb=(84, 66, 51))
         if cv2.countNonZero(mask_end_1) >= 0.95*zone_end_match_1.shape[0]*zone_end_match_1.shape[1] and cv2.countNonZero(mask_end_2) >= 0.95*zone_end_match_2.shape[0]*zone_end_match_2.shape[1]:
             match_image_dict[int(time.time())] = screen_image
-            # 3 for two rounds, becase we start with 2
+            unix_time = int(time.time())
+            cv2.imwrite(f'history/end_screen/{unix_time}.png', screen_image)
+            cv2.imwrite(f'history/abilities/{unix_time}.png', cv2.hconcat([player_abilities, opponent_abilities]))
+            # 3 for two rounds, because we start with 1
             if round_counter == 3:
-                for fighter_1, fighter_2, advantage in zip(player_selected_fighters[:2], enemy_selected_fighters[:2], round_advantages):
+                for fighter_1, fighter_2, advantage in zip(player_selected_fighters[:2], opponent_selected_fighters[:2], round_advantages):
                     try:
                         choose_ai = lambda f: f.ai_primary if f.selected_ai == 'primary' else f.ai_secondary
-                        data = (fighter_1.name, fighter_2.name, fighter_1.level, fighter_2.level, fighter_1.attributes, fighter_2.attributes, choose_ai(fighter_1), fighter_2.ai_primary, advantage)
-                        cursor.execute('INSERT INTO ai_battle_log_full (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes,fighter_1_ai, fighter_2_ai, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', data)
+                        data = (fighter_1.name, fighter_2.name, fighter_1.level, fighter_2.level, fighter_1.attributes, fighter_2.attributes, choose_ai(fighter_1), fighter_2.ai_primary, advantage, unix_time)
+                        cursor.execute('INSERT INTO ai_battle_log_full (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes,fighter_1_ai, fighter_2_ai, result, unix_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', data)
                         print('Database record added')
                     except Exception as e:
                         print(e)
                         print(player_selected_fighters)
-                        print(enemy_selected_fighters)
-            # 4 for three rounds, becase we start with 2
+                        print(opponent_selected_fighters)
+            # 4 for three rounds, because we start with 1
             if round_counter == 4:
-                for fighter_1, fighter_2, advantage in zip(player_selected_fighters, enemy_selected_fighters, round_advantages):
+                for fighter_1, fighter_2, advantage in zip(player_selected_fighters, opponent_selected_fighters, round_advantages):
                     try:
                         choose_ai = lambda f: f.ai_primary if f.selected_ai == 'primary' else f.ai_secondary
-                        data = (fighter_1.name, fighter_2.name, fighter_1.level, fighter_2.level, fighter_1.attributes, fighter_2.attributes, choose_ai(fighter_1), fighter_2.ai_primary, advantage)
-                        cursor.execute('INSERT INTO ai_battle_log_full (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes,fighter_1_ai, fighter_2_ai, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', data)
+                        data = (fighter_1.name, fighter_2.name, fighter_1.level, fighter_2.level, fighter_1.attributes, fighter_2.attributes, choose_ai(fighter_1), fighter_2.ai_primary, advantage, unix_time)
+                        cursor.execute('INSERT INTO ai_battle_log_full (fighter_1_name, fighter_2_name, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes,fighter_1_ai, fighter_2_ai, result, unix_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', data)
                         print('Database record added')
                     except:
                         print(player_selected_fighters)
-                        print(enemy_selected_fighters)
+                        print(opponent_selected_fighters)
 
 
             conn.commit()
@@ -592,7 +617,7 @@ while True:
         match_image_dict = {}
         printed = False
         player_selected_fighters = [None, None, None]
-        enemy_selected_fighters = [None, None, None]
+        opponent_selected_fighters = [None, None, None]
         round_buffer = []
         round_counter = 1
         round_advantages = []
