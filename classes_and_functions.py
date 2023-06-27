@@ -139,6 +139,38 @@ def template_matching(image_input, template_folder, resize=None):
             matched_output = f[len(template_folder)+1:].replace('.png', '')
     return matched_output, similarity
 
+def ability_high_pass_phash(image):
+    # Load image and convert to grayscale
+    img = image
+
+    # Apply a Gaussian blur to the image (low-pass filter)
+    low_pass = cv2.GaussianBlur(img, (5, 5), 0)
+
+    # Subtract the low-pass filtered image from the original image (high-pass filter)
+    img = cv2.subtract(img, low_pass)
+
+    # Compute 2D Discrete Cosine Transform (DCT)
+    dct = cv2.dct(np.float32(img))
+
+    # Extract top-left 8x8 from DCT result
+    dct_low_freq = dct[:27, :3]
+
+    # Compute the median value
+    median_val = np.median(dct_low_freq)
+
+    # Generate hash: for each value in dct_low_freq,
+    # if value > median_val, set to 1, else set to 0
+    hash = []
+    for i in range(dct_low_freq.shape[0]):
+        for j in range(dct_low_freq.shape[1]):
+            if dct_low_freq[i, j] > median_val:
+                hash.append(1)
+            else:
+                hash.append(0)
+
+    # Convert hash list to string
+    return ''.join(str(x) for x in hash)
+
 def tensorize_db_record(db_input_list, min_attr_value, max_attr_value):
 
     fighter_1_name = fighter_one_hot(db_input_list[0]).flatten()
@@ -191,9 +223,7 @@ def tensorize_db_record_inverted(db_input_list, min_attr_value, max_attr_value):
     return output.flatten()
 
 def score_encounter_predictions(advantage_list):
-    print('Advantage_list ', advantage_list)
     p = normalize_list(advantage_list, min_max_range=(-1, 1))
-    print('Normalized list:', p)
     # check if the length of the list is 3
     if len(p) != 3:
         raise ValueError("The list must contain exactly three probabilities.")
@@ -244,7 +274,7 @@ def print_prediction(input_dict):
         vs_3_2 += ' ' * (15 - len(vs_3_2))
 
 
-    print(Fore.LIGHTBLUE_EX+f'Win chance: {input_dict["score"]}'+Style.RESET_ALL)
+    print(Fore.LIGHTBLUE_EX+f'Win chance: {round(input_dict["score"]*100, 1)} %'+Style.RESET_ALL)
     print(vs_1_1 + ' vs.   ' + vs_1_2 + "  |  " + f'Advantage: {advantage_1}')
     print(vs_2_1 + ' vs.   ' + vs_2_2 + "  |  " + f'Advantage: {advantage_2}')
     print(vs_3_1 + ' vs.   ' + vs_3_2 + "  |  " + f'Advantage: {advantage_3}')
@@ -331,10 +361,10 @@ class ModelAdvantage(nn.Module):
 
         # Fully connected layers
         self.fc1 = nn.Linear(98, 256)
-        self.fc2 = nn.Linear(256, 128)
-        self.fc3 = nn.Linear(128, 1)
+        self.fc2 = nn.Linear(256, 256)
+        self.fc3 = nn.Linear(256, 1)
         self.mish = nn.Mish()
-        self.dropout = nn.Dropout(0.2)
+        self.dropout = nn.Dropout(0.25)
 
     def forward(self, x):
         x = x.view(x.size(0), -1)
@@ -345,6 +375,7 @@ class ModelAdvantage(nn.Module):
         x = self.dropout(x)
         x = torch.tanh(self.fc3(x))
         return x
+
 
 class Row():
     def __init__(self, index):
@@ -362,5 +393,8 @@ class Fighter():
         self.ai_secondary = ai_secondary
         self.selected_ai = 'primary'
         self.attributes = attributes
+        self.ability_1 = None
+        self.ability_2 = None
+        self.augment = None
 
 
