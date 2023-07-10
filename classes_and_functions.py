@@ -1,62 +1,12 @@
 import torch
-from torch import nn, optim
-import torch.nn.functional as F
+from torch import nn
 from torchvision import transforms
-import numpy as np
+import scipy.stats as stats
 import glob
 import cv2
 from skimage.metrics import structural_similarity as ssim
-import random
 from colorama import Fore, Style
 
-def fighter_one_hot(name):
-    fighter_indices = {
-        'aquaman': 0,
-        'atom': 1,
-        'atrocitus': 2,
-        'bane': 3,
-        'batman': 4,
-        'black_adam': 5,
-        'black_canary': 6,
-        'black_manta': 7,
-        'blue_beetle': 8,
-        'brainiac': 9,
-        'captain_cold': 10,
-        'catwoman': 11,
-        'cheetah': 12,
-        'cyborg': 13,
-        'darkseid': 14,
-        'deadshot': 15,
-        'doctor_fate': 16,
-        'enchantress': 17,
-        'firestorm': 18,
-        'flash': 19,
-        'gorilla_grodd': 20,
-        'green_arrow': 21,
-        'green_lantern': 22,
-        'harley_quinn': 23,
-        'hellboy': 24,
-        'joker': 25,
-        'poison_ivy': 26,
-        'raiden': 27,
-        'red_hood': 28,
-        'robin': 29,
-        'scarecrow': 30,
-        'starfire': 31,
-        'subzero': 32,
-        'supergirl': 33,
-        'superman': 34,
-        'swamp_thing': 35,
-        'tmnt': 36,
-        'wonder_woman': 37,
-        'not_selected': 38
-    }
-
-    fighter_indices.pop('not_selected')
-    num_classes = len(fighter_indices)
-    one_hot_dict = {key: F.one_hot(torch.tensor([value]), num_classes=num_classes) for key, value in
-                    fighter_indices.items()}
-    return one_hot_dict[name]
 
 
 def fighter_indices(fighter_name=None, fighter_index=None):
@@ -109,8 +59,6 @@ def fighter_indices(fighter_name=None, fighter_index=None):
             if i == fighter_index:
                 return name
 
-def linear_interpolation(value, input_min, input_max, output_range_min, output_range_max):
-    return output_range_min + (value - input_min) * ((output_range_max - output_range_min) / (input_max - input_min))
 
 def normalize_list(lst, min_max_range = None):
     if min_max_range != None:
@@ -141,7 +89,7 @@ def template_matching(image_input, template_folder, resize=None):
     return matched_output, similarity
 
 def abilities_indices(ability_name=None, ability_index=None):
-    abilities_dict = {'calloformmarius': 0, 'fromthedeep': 1, 'ormsmariuscharge': 2, 'powerofneptune': 3, 'tidalwave': 4, 'tridentstrike': 5, 'airatomizer': 6, 'atomfield': 7, 'massiveslam': 8, 'bloodpush': 9, 'causticpool': 10, 'dexstarsrage': 11, 'pillarofblood': 12, 'siphonpower': 13, 'airtoprope': 14, 'bodypress': 15, 'doublepunch': 16, 'dropkick': 17, 'juggernautrush': 18, 'advancedparry': 19, 'airdownwardbatarang': 20, 'airstraightbatarang': 21, 'batstrike': 22, 'boomerangbat': 23, 'capeparry': 24, 'dualbatarangs': 25, 'evadingbat': 26, 'taserrangs': 27, 'airlightningcage': 28, 'deitysbolt': 29, 'powerofaton': 30, 'rollingthunder': 31, 'sethstrike': 32, 'soulofshazam': 33, 'aircanarycry': 34, 'bodybounce': 35, 'clutchcrush': 36, 'risingkick': 37, 'screech': 38, 'sonicburst': 39, 'darksuit': 40, 'riptide': 41, 'sweepingmantarays': 42, 'aculeusstrike': 43, 'airdivinitymandiblestrike': 44, 'aliencloak': 45, 'mandibleflurry': 46, 'myrules': 47, 'destructionorb': 48, 'enchancedlivingmetal': 49, 'ioncannon': 50, 'tendrilharpoon': 51, 'tendrilslide': 52, 'aircoldblast': 53, 'airicebridge': 54, 'airiceout': 55, 'coldstream': 56, 'iceburst': 57, 'icerain': 58, 'shoulderofcold': 59, 'upwardcoldblast': 60, '9lives': 61, 'aircatslash': 62, 'catcall': 63, 'catclaws': 64, 'chaoticcat': 65, 'lowwhip': 66, 'aircheetahclutch': 67, 'airjunglejump': 68, 'creepingpredator': 69, 'savageslam': 70, 'spottedtorpedo': 71, 'bodyshield': 72, 'directedarmblaster': 73, 'airboomtubeaway': 74, 'boomrubeaway': 75, 'boomtube': 76, 'hateslam': 77, 'maximumomega': 78, 'reveresomegabeams': 79, 'airsniper': 80, 'heavyartillery': 81, 'lowwristcannon': 82, 'rocketjump': 83, 'scopedshot': 84, 'upshot': 85, 'absorptionspell': 86, 'airamonrablast': 87, 'airdash': 88, 'darkankh': 89, 'instantjudgement': 90, 'powerless': 91, 'seekingdisplacerorb': 92, 'anotherdimension': 93, 'banishingblast': 94, 'barrierspell': 95, 'demonsdissolve': 96, 'divinityspell': 97, 'hypnoticspell': 98, 'airgroundspark': 99, 'atombomb': 100, 'flamephase': 101, 'meltingpoint': 102, 'vaporize': 103, 'airspinout': 104, 'fistsfrenzy': 105, 'lightningcharge': 106, 'sonicbolt': 107, 'sonicparry': 108, 'speednado': 109, 'doubledribble': 110, 'furiousflurry': 111, 'gorillagrab': 112, 'primitivepound': 113, 'bolaarrow': 114, 'distractingshot': 115, 'evasiveshock': 116, 'skybolt': 117, 'smokearrow': 118, 'airoasrocket': 119, 'lanternsbarrier': 120, 'minigun': 121, 'oasrocket': 122, 'quickcharge': 123, 'rocketpower': 124, 'turbinesmash': 125, 'allpurposefrosting': 126, 'cherrybomb': 127, 'confetticannon': 128, 'helovesme': 129, 'ivysblessing': 130, 'jokerinfection': 131, 'mollywhop': 132, 'ticktock': 133, 'airdevilsrevolver': 134, 'azzaelsguard': 135, 'gravedigger': 136, 'hellsfury': 137, 'crowbarcrush': 138, 'crowbarfling': 139, 'gasser': 140, 'sideorderofpie': 141, 'surprise': 142, 'crawlingvines': 143, 'deadlythorns': 144, 'flowingearth': 145, 'petalsoflife': 146, 'thistlecoat': 147, 'airsparkport': 148, 'electriccurrent': 149, 'electricstorm': 150, 'powerbolt': 151, 'statictraps': 152, 'akimboblaze': 153, 'gutted': 154, 'hiddenexplosive': 155, 'instantdeath': 156, 'shrapnelblast': 157, 'timebomb': 158, 'airdeadlydirdarang': 159, 'deadlybirdarang': 160, 'elusiveswoop': 161, 'lineinthesand': 162, 'lowsmartbirdarang': 163, 'staffofgrayson': 164, 'floorflame': 165, 'panicportaway': 166, 'sacrifice': 167, 'soaringmurder': 168, 'terrorcharge': 169, 'novaburst': 170, 'spincycle': 171, 'starblastbarrage': 172, 'starslam': 173, 'xhalstrength': 174, 'airclonekick': 175, 'barrieroffrost': 176, 'groundfreeze': 177, 'hammerslam': 178, 'iceport': 179, 'klonecharge': 180, 'airheatvision': 181, 'earthshatter': 182, 'kryptoniangrinder': 183, 'speedingbullet': 184, 'suncharge': 185, 'airheatzap': 186, 'empoweredheatzap': 187, 'groundtremor': 188, 'kryptoncharge': 189, 'meteordrop': 190, 'truckpunchpull': 191, 'bonsai': 192, 'sinkingslough': 193, 'swampjuice': 194, 'pizzaparty': 195, 'raisingshell': 196, 'shellslide': 197, 'aegisofzeus': 198, 'airamazonianslam': 199, 'amaltheasprotection': 200, 'artemisstrength': 201, 'athenaspower': 202, 'demetersspirit': 203, 'hermesblessing': 204, 'hestiasgift': 205, 'lassospin': 206, 'swordofathena': 207, 'ability': 208, 'allpowerful': 209, 'almightypower': 210, 'augment': 211, 'boosted': 212, 'buddysystem': 213, 'deadlytransition': 214, 'eternallife': 215, 'feelthepain': 216, 'feelthepower': 217, 'gettingstronger': 218, 'godlike': 219, 'holdingback': 220, 'juggernaut': 221, 'liveforever': 222, 'longlife': 223, 'notdeadyet': 224, 'nothankyou': 225, 'notsostrong': 226, 'pumpedup': 227, 'steamroller': 228, 'strongerfaster': 229, 'tank': 230, 'truechampion': 231, 'whatiwant': 232}
+    abilities_dict = {'calloformmarius': 0, 'fromthedeep': 1, 'ormsmariuscharge': 2, 'powerofneptune': 3, 'tidalwave': 4, 'tridentstrike': 5, 'airatomizer': 6, 'atomfield': 7, 'makingmatter': 8, 'massiveslam': 9, 'bloodpush': 10, 'causticpool': 11, 'dexstarsrage': 12, 'pillarofblood': 13, 'siphonpower': 14, 'airtoprope': 15, 'bodypress': 16, 'doublepunch': 17, 'dropkick': 18, 'juggernautrush': 19, 'advancedparry': 20, 'airdownwardbatarang': 21, 'airstraightbatarang': 22, 'batstrike': 23, 'boomerangbat': 24, 'capeparry': 25, 'dualbatarangs': 26, 'evadingbat': 27, 'taserrangs': 28, 'airlightningcage': 29, 'deitysbolt': 30, 'powerofaton': 31, 'rollingthunder': 32, 'sethstrike': 33, 'soulofshazam': 34, 'aircanarycry': 35, 'bodybounce': 36, 'clutchcrush': 37, 'risingkick': 38, 'screech': 39, 'sonicburst': 40, 'blackpearl': 41, 'darksuit': 42, 'riptide': 43, 'sweepingmantarays': 44, 'aculeusstrike': 45, 'airdivinitymandiblestrike': 46, 'aliencloak': 47, 'mandibleflurry': 48, 'myrules': 49, 'destructionorb': 50, 'enchancedlivingmetal': 51, 'ioncannon': 52, 'tendrilharpoon': 53, 'tendrilslide': 54, 'aircoldblast': 55, 'airicebridge': 56, 'airiceout': 57, 'coldstream': 58, 'iceburst': 59, 'icerain': 60, 'shoulderofcold': 61, 'upwardcoldblast': 62, '9lives': 63, 'aircatslash': 64, 'catcall': 65, 'catclaws': 66, 'chaoticcat': 67, 'lowwhip': 68, 'aircheetahclutch': 69, 'airjunglejump': 70, 'creepingpredator': 71, 'savageslam': 72, 'spottedtorpedo': 73, 'bodyshield': 74, 'directedarmblaster': 75, 'airboomtubeaway': 76, 'boomrubeaway': 77, 'boomtube': 78, 'hateslam': 79, 'maximumomega': 80, 'reveresomegabeams': 81, 'airsniper': 82, 'heavyartillery': 83, 'lowwristcannon': 84, 'rocketjump': 85, 'scopedshot': 86, 'upshot': 87, 'absorptionspell': 88, 'airamonrablast': 89, 'airdash': 90, 'darkankh': 91, 'instantjudgement': 92, 'powerless': 93, 'seekingdisplacerorb': 94, 'anotherdimension': 95, 'banishingblast': 96, 'barrierspell': 97, 'demonsdissolve': 98, 'divinityspell': 99, 'eclipsosgrasp': 100, 'hypnoticspell': 101, 'airgroundspark': 102, 'atombomb': 103, 'flamephase': 104, 'meltingpoint': 105, 'vaporize': 106, 'airspinout': 107, 'fistsfrenzy': 108, 'lightningcharge': 109, 'sonicbolt': 110, 'sonicparry': 111, 'speednado': 112, 'doubledribble': 113, 'furiousflurry': 114, 'gorillagrab': 115, 'primitivepound': 116, 'bolaarrow': 117, 'distractingshot': 118, 'evasiveshock': 119, 'skybolt': 120, 'smokearrow': 121, 'airoasrocket': 122, 'lanternsbarrier': 123, 'minigun': 124, 'oasrocket': 125, 'quickcharge': 126, 'rocketpower': 127, 'turbinesmash': 128, 'allpurposefrosting': 129, 'cherrybomb': 130, 'confetticannon': 131, 'helovesme': 132, 'ivysblessing': 133, 'jokerinfection': 134, 'mollywhop': 135, 'ticktock': 136, 'airdevilsrevolver': 137, 'azzaelsguard': 138, 'brimstonegrenade': 139, 'gravedigger': 140, 'hellsfury': 141, 'crowbarcrush': 142, 'crowbarfling': 143, 'gasser': 144, 'knifeparry': 145, 'sideorderofpie': 146, 'surprise': 147, 'crawlingvines': 148, 'deadlythorns': 149, 'flowingearth': 150, 'petalsoflife': 151, 'thistlecoat': 152, 'airsparkport': 153, 'electriccurrent': 154, 'electricstorm': 155, 'powerbolt': 156, 'statictraps': 157, 'akimboblaze': 158, 'gutted': 159, 'hiddenexplosive': 160, 'instantdeath': 161, 'shrapnelblast': 162, 'timebomb': 163, 'airdeadlydirdarang': 164, 'deadlybirdarang': 165, 'elusiveswoop': 166, 'lineinthesand': 167, 'lowsmartbirdarang': 168, 'staffofgrayson': 169, 'floorflame': 170, 'panicportaway': 171, 'plague': 172, 'sacrifice': 173, 'soaringmurder': 174, 'terrorcharge': 175, 'floatingprincess': 176, 'novaburst': 177, 'spincycle': 178, 'starblastbarrage': 179, 'starslam': 180, 'xhalstrength': 181, 'airclonekick': 182, 'barrieroffrost': 183, 'groundfreeze': 184, 'hammerslam': 185, 'iceport': 186, 'klonecharge': 187, 'airheatvision': 188, 'earthshatter': 189, 'kryptoniangrinder': 190, 'speedingbullet': 191, 'suncharge': 192, 'airheatzap': 193, 'empoweredheatzap': 194, 'groundtremor': 195, 'kryptoncharge': 196, 'meteordrop': 197, 'truckpunchpull': 198, 'bonsai': 199, 'sinkingslough': 200, 'swampjuice': 201, 'pizzaparty': 202, 'raisingshell': 203, 'shellslide': 204, 'aegisofzeus': 205, 'airamazonianslam': 206, 'amaltheasprotection': 207, 'artemisstrength': 208, 'athenaspower': 209, 'demetersspirit': 210, 'hermesblessing': 211, 'hestiasgift': 212, 'lassospin': 213, 'swordofathena': 214, 'ability': 215, 'allpowerful': 216, 'almightypower': 217, 'augment': 218, 'boosted': 219, 'buddysystem': 220, 'deadlytransition': 221, 'eternallife': 222, 'feelthepain': 223, 'feelthepower': 224, 'gettingstronger': 225, 'godlike': 226, 'holdingback': 227, 'juggernaut': 228, 'liveforever': 229, 'longlife': 230, 'notdeadyet': 231, 'nothankyou': 232, 'notsostrong': 233, 'pumpedup': 234, 'steamroller': 235, 'strongerfaster': 236, 'tank': 237, 'truechampion': 238, 'whatiwant': 239}
 
     abilities_dict['not_available'] = max(abilities_dict.values())+1
     if ability_index is None:
@@ -178,7 +126,9 @@ def ability_recognize(input_image, model):
     return predicted_class.item(), probabilities[0][predicted_class.item()].item()
 
 
-def tensorize_db_record_abilities(db_input_list, min_attr_value, max_attr_value):
+def tensorize_db_record_abilities(db_input_list):
+
+    attr_diff_norm_range = 1500
 
     fighter_1_name = torch.tensor([fighter_indices(fighter_name=db_input_list[0])])
     fighter_2_name = torch.tensor([fighter_indices(fighter_name=db_input_list[1])])
@@ -187,9 +137,9 @@ def tensorize_db_record_abilities(db_input_list, min_attr_value, max_attr_value)
     fighter_2_level = torch.tensor([db_input_list[3]/30])
 
     fighter_1_attributes_not_norm = [int(n.replace('[', '').replace(']', '')) for n in db_input_list[4].split(',')]
-    fighter_1_attributes = torch.tensor(normalize_list(fighter_1_attributes_not_norm, min_max_range=(min_attr_value, max_attr_value)))
     fighter_2_attributes_not_norm = [int(n.replace('[', '').replace(']', '')) for n in db_input_list[5].split(',')]
-    fighter_2_attributes = torch.tensor(normalize_list(fighter_2_attributes_not_norm, min_max_range=(min_attr_value, max_attr_value)))
+
+    attributes_difference = torch.tensor(normalize_list([a-b for a, b in zip(fighter_1_attributes_not_norm, fighter_2_attributes_not_norm)], min_max_range=(-1*attr_diff_norm_range, attr_diff_norm_range)))
 
     fighter_1_ai = torch.tensor([int(n.replace('[', '').replace(']', ''))/30 for n in db_input_list[6].split(',')])
     fighter_2_ai = torch.tensor([int(n.replace('[', '').replace(']', ''))/30 for n in db_input_list[7].split(',')])
@@ -215,12 +165,13 @@ def tensorize_db_record_abilities(db_input_list, min_attr_value, max_attr_value)
         fighter_2_ability_2 = torch.tensor([abilities_indices(ability_name='not_available')])
         fighter_2_augment = torch.tensor([abilities_indices(ability_name='not_available')])
 
-    output = torch.cat([fighter_1_name, fighter_2_name, fighter_1_ability_1, fighter_1_ability_2, fighter_1_augment, fighter_2_ability_1, fighter_2_ability_2, fighter_2_augment, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes, fighter_1_ai, fighter_2_ai, advantage])
+    output = torch.cat([fighter_1_name, fighter_2_name, fighter_1_ability_1, fighter_1_ability_2, fighter_1_augment, fighter_2_ability_1, fighter_2_ability_2, fighter_2_augment, attributes_difference, fighter_1_ai, fighter_2_ai, advantage])
 
     return output.flatten()
 
 
-def tensorize_db_record_abilities_inverted(db_input_list, min_attr_value, max_attr_value):
+def tensorize_db_record_abilities_inverted(db_input_list):
+    attr_diff_norm_range = 1500
 
     fighter_1_name = torch.tensor([fighter_indices(fighter_name=db_input_list[1])])
     fighter_2_name = torch.tensor([fighter_indices(fighter_name=db_input_list[0])])
@@ -229,9 +180,11 @@ def tensorize_db_record_abilities_inverted(db_input_list, min_attr_value, max_at
     fighter_2_level = torch.tensor([db_input_list[2]/30])
 
     fighter_1_attributes_not_norm = [int(n.replace('[', '').replace(']', '')) for n in db_input_list[5].split(',')]
-    fighter_1_attributes = torch.tensor(normalize_list(fighter_1_attributes_not_norm, min_max_range=(min_attr_value, max_attr_value)))
     fighter_2_attributes_not_norm = [int(n.replace('[', '').replace(']', '')) for n in db_input_list[4].split(',')]
-    fighter_2_attributes = torch.tensor(normalize_list(fighter_2_attributes_not_norm, min_max_range=(min_attr_value, max_attr_value)))
+
+    attributes_difference = torch.tensor(
+        normalize_list([a - b for a, b in zip(fighter_1_attributes_not_norm, fighter_2_attributes_not_norm)],
+                       min_max_range=(-1 * attr_diff_norm_range, attr_diff_norm_range)))
 
     fighter_1_ai = torch.tensor([int(n.replace('[', '').replace(']', ''))/30 for n in db_input_list[7].split(',')])
     fighter_2_ai = torch.tensor([int(n.replace('[', '').replace(']', ''))/30 for n in db_input_list[6].split(',')])
@@ -256,14 +209,23 @@ def tensorize_db_record_abilities_inverted(db_input_list, min_attr_value, max_at
         fighter_2_ability_2 = torch.tensor([abilities_indices(ability_name='not_available')])
         fighter_2_augment = torch.tensor([abilities_indices(ability_name='not_available')])
 
-    output = torch.cat([fighter_1_name, fighter_2_name, fighter_1_ability_1, fighter_1_ability_2, fighter_1_augment, fighter_2_ability_1, fighter_2_ability_2, fighter_2_augment, fighter_1_level, fighter_2_level, fighter_1_attributes, fighter_2_attributes, fighter_1_ai, fighter_2_ai, advantage])
+    output = torch.cat([fighter_1_name, fighter_2_name, fighter_1_ability_1, fighter_1_ability_2, fighter_1_augment, fighter_2_ability_1, fighter_2_ability_2, fighter_2_augment, attributes_difference, fighter_1_ai, fighter_2_ai, advantage])
     return output.flatten()
+
+def advantage_to_probabilities(prediction, std_dev):
+    if prediction >= 0:
+        probability_win = 1 - stats.norm.cdf(0, loc=prediction, scale=std_dev)
+    else:
+        # Calculate the cumulative distribution function
+        probability_lose = stats.norm.cdf(0, loc=prediction, scale=std_dev)
+        probability_win = 1 - probability_lose
+    return probability_win
 
 def score_encounter_predictions(p_raw):
     #p = normalize_list(advantage_list, min_max_range=(-1, 1))
     # check if the length of the list is 3
 
-    p = [a if a > 0 else 0 for a in p_raw]
+    p = [a.item() if a > 0 else 0 for a in p_raw]
 
     if len(p) != 3:
         raise ValueError("The list must contain exactly three probabilities.")
@@ -413,53 +375,13 @@ class ModelAbilityRecognition(nn.Module):
         return x
 
 
-class ModelAdvantage_v2(nn.Module):
-    def __init__(self):
-        super(ModelAdvantage_v2, self).__init__()
+        # Separate outputs with their respective activation functions
+        x_winprob = self.activation(self.fc_winprob(x))
+        x_advantage = self.activation(self.fc_advantage(x))
+        out_winprob = self.sigmoid(self.fc_out1(x_winprob))
+        out_advantage = self.tanh(self.fc_out2(x_advantage))
 
-        self.num_abilties = 233
-        # Embedding layers
-        self.fighter_name = nn.Embedding(38, 100)
-        self.ability_embedding = nn.Embedding(self.num_abilties+1, 100)
-
-        # Fully connected layers
-        self.fc1 = nn.Linear(822, 512)
-        self.fc2 = nn.Linear(512, 512)
-        self.fc3 = nn.Linear(512, 256)
-        self.fc_out = nn.Linear(256, 1)
-
-        self.mish = nn.Mish()
-        self.dropout = nn.Dropout(0.15)
-
-    def forward(self, x):
-        # Get embeddings
-        fighter1_embed = self.fighter_name(x[:, 0].long())
-        fighter2_embed = self.fighter_name(x[:, 1].long())
-        fighter_1_ability_1_embed = self.ability_embedding(x[:, 2].long())
-        fighter_1_ability_2_embed = self.ability_embedding(x[:, 3].long())
-        fighter_1_augment_embed = self.ability_embedding(x[:, 4].long())
-        fighter_2_ability_1_embed = self.ability_embedding(x[:, 5].long())
-        fighter_2_ability_2_embed = self.ability_embedding(x[:, 6].long())
-        fighter_2_augment_embed = self.ability_embedding(x[:, 7].long())
-
-        # Concatenate embeddings
-        x = torch.cat((fighter1_embed, fighter2_embed,
-                       fighter_1_ability_1_embed, fighter_1_ability_2_embed, fighter_1_augment_embed,
-                       fighter_2_ability_1_embed, fighter_2_ability_2_embed, fighter_2_augment_embed,
-                       x[:, 8:]), dim=1)
-
-        # Feed through network
-        x = x.view(x.size(0), -1)
-        x = x.float()
-        x = self.mish(self.fc1(x))
-        x = self.dropout(x)
-        x = self.mish(self.fc2(x))
-        x = self.dropout(x)
-        x = self.mish(self.fc3(x))
-        x = self.dropout(x)
-        x = torch.sigmoid(self.fc_out(x))
-
-        return x
+        return out_winprob, out_advantage
 
 class Row():
     def __init__(self, index):
@@ -482,26 +404,31 @@ class Fighter():
         self.augment = augment
 
 
-class ModelAdvantage_testng(nn.Module):
+class ModelAdvantage_v2_5(nn.Module):
     def __init__(self):
-        super(ModelAdvantage_testng, self).__init__()
+        super(ModelAdvantage_v2_5, self).__init__()
 
-        self.num_abilties = 233
+        self.num_abilties = 240
         # Embedding layers
-        self.fighter_name = nn.Embedding(38, 152)
+        self.fighter_name = nn.Embedding(38, 100)
         self.ability_embedding = nn.Embedding(self.num_abilties+1, 100)
 
         # Fully connected layers
-        self.fc1 = nn.Linear(774, 512)
-        self.fc3 = nn.Linear(512, 512)
-        self.fc4 = nn.Linear(512, 512)
-        self.fc_out = nn.Linear(512, 1)
+        self.fc1 = nn.Linear(816, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc_winprob = nn.Linear(256, 128)
+        self.fc_advantage = nn.Linear(256, 128)
+        self.fc_out1 = nn.Linear(128, 1)  # Outputs a value between 0 and 1
+        self.fc_out2 = nn.Linear(128, 1)  # Outputs a value between -1 and 1
 
-        self.mish = nn.Mish()
+        self.activation = nn.Mish()
+        self.tanh = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
         self.dropout = nn.Dropout(0.1)
 
     def forward(self, x):
         # Get embeddings
+        fighter1_embed = self.fighter_name(x[:, 0].long())
         fighter2_embed = self.fighter_name(x[:, 1].long())
         fighter_1_ability_1_embed = self.ability_embedding(x[:, 2].long())
         fighter_1_ability_2_embed = self.ability_embedding(x[:, 3].long())
@@ -511,20 +438,25 @@ class ModelAdvantage_testng(nn.Module):
         fighter_2_augment_embed = self.ability_embedding(x[:, 7].long())
 
         # Concatenate embeddings
-        x = torch.cat((fighter2_embed,
+        x = torch.cat((fighter1_embed, fighter2_embed,
                        fighter_1_ability_1_embed, fighter_1_ability_2_embed, fighter_1_augment_embed,
                        fighter_2_ability_1_embed, fighter_2_ability_2_embed, fighter_2_augment_embed,
                        x[:, 8:]), dim=1)
 
+
         # Feed through network
         x = x.view(x.size(0), -1)
         x = x.float()
-        x = self.mish(self.fc1(x))
+        x = self.tanh(self.fc1(x))
         x = self.dropout(x)
-        x = self.mish(self.fc3(x))
+        x = self.activation(self.fc2(x))
         x = self.dropout(x)
-        x = self.mish(self.fc4(x))
-        x = self.dropout(x)
-        x = torch.tanh(self.fc_out(x))
 
-        return x
+
+        # Separate outputs with their respective activation functions
+        x_winprob = self.activation(self.fc_winprob(x))
+        x_advantage = self.activation(self.fc_advantage(x))
+        out_winprob = self.sigmoid(self.fc_out1(x_winprob))
+        out_advantage = self.tanh(self.fc_out2(x_advantage))
+
+        return out_winprob, out_advantage

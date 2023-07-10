@@ -5,12 +5,10 @@ import numpy as np
 import cv2
 import time
 import sqlite3
-from classes_and_functions import Fighter, template_matching, ModelAdvantage_v2, ModelHpTrack, ModelFighterRecognition, ModelDigitRecognition, ModelAbilityRecognition, tensorize_db_record_abilities, similarity, fighter_indices, score_encounter_predictions, print_prediction, ability_recognize, abilities_indices, advantage_to_win_prob
+from classes_and_functions import Fighter, template_matching, ModelAdvantage_v2_5, ModelHpTrack, ModelFighterRecognition, ModelDigitRecognition, ModelAbilityRecognition, tensorize_db_record_abilities, similarity, fighter_indices, score_encounter_predictions, print_prediction, ability_recognize, abilities_indices
 import torch
 import ast
 import itertools
-
-from classes_and_functions import ModelAdvantage_testng
 
 
 #GLOBAL VARIABLES
@@ -33,6 +31,7 @@ round_ended = False
 player_selected_fighters = [None, None, None]
 opponent_selected_fighters = [None, None, None]
 attributes_norm_range = (900, 6500)
+advantage_std_deviation = 0.263465
 
 nn_hp_track = ModelHpTrack()
 nn_hp_track.load_state_dict(torch.load('nn_weights/weights_hp_track.pth'))
@@ -46,15 +45,11 @@ nn_digit_recognition = ModelDigitRecognition()
 nn_digit_recognition.load_state_dict(torch.load('nn_weights/weights_digit_recognition.pth'))
 nn_digit_recognition.eval()
 
-nn_advantage = ModelAdvantage_v2()
-nn_advantage.load_state_dict(torch.load('nn_weights/weights_advantage_v2.pth'))
+nn_advantage = ModelAdvantage_v2_5()
+nn_advantage.load_state_dict(torch.load('nn_weights/weights_advantage_v2_5.pth'))
 nn_advantage.eval()
 
-nn_advantage_testing = ModelAdvantage_testng()
-nn_advantage_testing.load_state_dict(torch.load('nn_weights/weights_advantage_testing.pth'))
-nn_advantage.eval()
-
-nn_ability_recognition = ModelAbilityRecognition(num_classes=226)
+nn_ability_recognition = ModelAbilityRecognition(num_classes=240)
 nn_ability_recognition.load_state_dict(torch.load('nn_weights/weights_abilities_recognition.pth'))
 
 template_player_hero_selection = cv2.imread('images/template_player_hero_selection.png')
@@ -89,18 +84,13 @@ for dict in player_dicts:
                                    ability_2=dict['ability_2'],
                                    augment=dict['augment']))
 
-#player_fighters = [player_fighter_1, player_fighter_3, player_fighter_4, player_fighter_5, player_fighter_6]
-#player_fighters =  [player_fighter_1, player_fighter_2, player_fighter_3, player_fighter_4, player_fighter_5, player_fighter_6]
-
 player_fighters_permutations = list(itertools.permutations(player_fighters, 3))
-
-forced_fighter = 'enchantress'
 player_fighters_permutations_forced = []
 
-for i in player_fighters_permutations:
-    if forced_fighter in [i[0].name, i[1].name, i[2].name]:
-        player_fighters_permutations_forced.append(i)
 
+for i in player_fighters_permutations:
+    if 'catwoman' not in [i[0].name, i[1].name, i[2].name] and 'bane' not in [i[0].name, i[1].name, i[2].name]:
+        player_fighters_permutations_forced.append(i)
 
 # MAIN LOOP
 while True:
@@ -422,31 +412,19 @@ while True:
                                           opponent_selected_fighters[0].ability_2,
                                           opponent_selected_fighters[0].augment]
 
-                prediction_1_primary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_1_primary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-                prediction_1_secondary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_1_secondary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
+                prediction_1_primary, _ = nn_advantage(
+                    tensorize_db_record_abilities(input_list_1_primary)[:24].unsqueeze(
+                        0))
+                prediction_1_secondary, _ = nn_advantage(
+                    tensorize_db_record_abilities(input_list_1_secondary)[:24].unsqueeze(
+                        0))
 
-                prediction_advantage_1_primary = nn_advantage_testing(
-                    tensorize_db_record_abilities(input_list_1_primary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-                prediction_advantage_1_secondary = nn_advantage_testing(
-                    tensorize_db_record_abilities(input_list_1_secondary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
 
                 if prediction_1_secondary > prediction_1_primary:
                     prediction_1 = prediction_1_secondary
-                    prediction_advantage_1 = prediction_advantage_1_secondary
                     selected_ai_1 = 'secondary'
                 else:
                     prediction_1 = prediction_1_primary
-                    prediction_advantage_1 = prediction_advantage_1_primary
                     selected_ai_1 = 'primary'
 
                 input_list_2_primary = [player_row[1].name, opponent_selected_fighters[1].name, player_row[1].level,
@@ -466,31 +444,19 @@ while True:
                                           opponent_selected_fighters[1].ability_2,
                                           opponent_selected_fighters[1].augment]
 
-                prediction_2_primary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_2_primary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-                prediction_2_secondary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_2_secondary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
+                prediction_2_primary, _ = nn_advantage(
+                    tensorize_db_record_abilities(input_list_2_primary)[:24].unsqueeze(
+                        0))
+                prediction_2_secondary, _ = nn_advantage(
+                    tensorize_db_record_abilities(input_list_2_secondary)[:24].unsqueeze(
+                        0))
 
-                prediction_advantage_2_primary = nn_advantage_testing(
-                    tensorize_db_record_abilities(input_list_2_primary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-                prediction_advantage_2_secondary = nn_advantage_testing(
-                    tensorize_db_record_abilities(input_list_2_secondary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
 
                 if prediction_2_secondary > prediction_2_primary:
                     prediction_2 = prediction_2_secondary
-                    prediction_advantage_2 = prediction_advantage_2_secondary
                     selected_ai_2 = 'secondary'
                 else:
                     prediction_2 = prediction_2_primary
-                    prediction_advantage_2 = prediction_advantage_2_primary
                     selected_ai_2 = 'primary'
 
                 input_list_3_primary = [player_row[2].name, opponent_selected_fighters[2].name, player_row[2].level,
@@ -510,33 +476,19 @@ while True:
                                           opponent_selected_fighters[2].ability_2,
                                           opponent_selected_fighters[2].augment]
 
-                prediction_3_primary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_3_primary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-                prediction_3_secondary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_3_secondary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
+                prediction_3_primary, _ = nn_advantage(
+                    tensorize_db_record_abilities(input_list_3_primary)[:24].unsqueeze(
+                        0))
+                prediction_3_secondary, _ = nn_advantage(
+                    tensorize_db_record_abilities(input_list_3_secondary)[:24].unsqueeze(
+                        0))
 
-                ###########################################
-
-                prediction_advantage_3_primary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_3_primary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-                prediction_advantage_3_secondary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_3_secondary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
 
                 if prediction_3_secondary > prediction_3_primary:
                     prediction_3 = prediction_3_secondary
-                    prediction_advantage_3 = prediction_advantage_3_secondary
                     selected_ai_3 = 'secondary'
                 else:
                     prediction_3 = prediction_3_primary
-                    prediction_advantage_3 = prediction_advantage_3_primary
                     selected_ai_3 = 'primary'
 
                 encounter_prediction = [prediction_1, prediction_2, prediction_3]
@@ -548,174 +500,26 @@ while True:
                     encounter_tracker['opponent_fighter_1_name'] = opponent_selected_fighters[0].name
                     encounter_tracker['opponent_fighter_1_level'] = opponent_selected_fighters[0].level
                     encounter_tracker['player_ai_1'] = selected_ai_1
-                    encounter_tracker['advantage_1'] = prediction_1
+                    encounter_tracker['advantage_1'] = prediction_1.item()
 
                     encounter_tracker['player_fighter_2_name'] = player_row[1].name
                     encounter_tracker['player_fighter_2_level'] = player_row[1].level
                     encounter_tracker['opponent_fighter_2_name'] = opponent_selected_fighters[1].name
                     encounter_tracker['opponent_fighter_2_level'] = opponent_selected_fighters[1].level
                     encounter_tracker['player_ai_2'] = selected_ai_2
-                    encounter_tracker['advantage_2'] = prediction_2
+                    encounter_tracker['advantage_2'] = prediction_2.item()
 
                     encounter_tracker['player_fighter_3_name'] = player_row[2].name
                     encounter_tracker['player_fighter_3_level'] = player_row[2].level
                     encounter_tracker['opponent_fighter_3_name'] = opponent_selected_fighters[2].name
                     encounter_tracker['opponent_fighter_3_level'] = opponent_selected_fighters[2].level
                     encounter_tracker['player_ai_3'] = selected_ai_3
-                    encounter_tracker['advantage_3'] = prediction_3
+                    encounter_tracker['advantage_3'] = prediction_3.item()
 
-                    encounter_tracker['testing_advantage_1'] = prediction_advantage_1
-                    encounter_tracker['testing_advantage_2'] = prediction_advantage_2
-                    encounter_tracker['testing_advantage_3'] = prediction_advantage_3
 
 
             print_prediction(encounter_tracker)
             launch_calculation = False
-
-        if launch_calculation_forced:
-            print(f'Calculating best outcome (forced fighter: {forced_fighter})...')
-            encounter_tracker = {
-                'score': -1
-            }
-
-            for player_row in player_fighters_permutations_forced:
-                input_list_1_primary = [player_row[0].name, opponent_selected_fighters[0].name, player_row[0].level,
-                                        opponent_selected_fighters[0].level, player_row[0].attributes, opponent_selected_fighters[0].attributes,
-                                        player_row[0].ai_primary, opponent_selected_fighters[0].ai_primary, 0, 0, player_row[0].ability_1, player_row[0].ability_2, player_row[0].augment, opponent_selected_fighters[0].ability_1, opponent_selected_fighters[0].ability_2, opponent_selected_fighters[0].augment]
-                input_list_1_secondary = [player_row[0].name, opponent_selected_fighters[0].name, player_row[0].level,
-                                          opponent_selected_fighters[0].level, player_row[0].attributes, opponent_selected_fighters[0].attributes,
-                                          player_row[0].ai_secondary, opponent_selected_fighters[0].ai_primary, 0, 0, player_row[0].ability_1, player_row[0].ability_2, player_row[0].augment, opponent_selected_fighters[0].ability_1, opponent_selected_fighters[0].ability_2, opponent_selected_fighters[0].augment]
-
-                prediction_1_primary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_1_primary, min_attr_value=attributes_norm_range[0], max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-                prediction_1_secondary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_1_secondary, min_attr_value=attributes_norm_range[0], max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-
-                prediction_advantage_1_primary = nn_advantage_testing(
-                    tensorize_db_record_abilities(input_list_1_primary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-                prediction_advantage_1_secondary = nn_advantage_testing(
-                    tensorize_db_record_abilities(input_list_1_secondary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-
-
-                if prediction_1_secondary > prediction_1_primary:
-                    prediction_1 = prediction_1_secondary
-                    prediction_advantage_1 = prediction_advantage_1_secondary
-                    selected_ai_1 = 'secondary'
-                else:
-                    prediction_1 = prediction_1_primary
-                    prediction_advantage_1 = prediction_advantage_1_primary
-                    selected_ai_1 = 'primary'
-
-                input_list_2_primary = [player_row[1].name, opponent_selected_fighters[1].name, player_row[1].level,
-                                        opponent_selected_fighters[1].level,
-                                        player_row[1].attributes, opponent_selected_fighters[1].attributes, player_row[1].ai_primary,
-                                        opponent_selected_fighters[1].ai_primary, 0, 0, player_row[1].ability_1, player_row[1].ability_2, player_row[1].augment, opponent_selected_fighters[1].ability_1, opponent_selected_fighters[1].ability_2, opponent_selected_fighters[1].augment]
-                input_list_2_secondary = [player_row[1].name, opponent_selected_fighters[1].name, player_row[1].level,
-                                          opponent_selected_fighters[1].level, player_row[1].attributes, opponent_selected_fighters[1].attributes,
-                                          player_row[1].ai_secondary, opponent_selected_fighters[1].ai_primary, 0, 0, player_row[1].ability_1, player_row[1].ability_2, player_row[1].augment, opponent_selected_fighters[1].ability_1, opponent_selected_fighters[1].ability_2, opponent_selected_fighters[1].augment]
-
-                prediction_2_primary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_2_primary, min_attr_value=attributes_norm_range[0], max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-                prediction_2_secondary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_2_secondary, min_attr_value=attributes_norm_range[0], max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-
-
-                prediction_advantage_2_primary = nn_advantage_testing(
-                    tensorize_db_record_abilities(input_list_2_primary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-                prediction_advantage_2_secondary = nn_advantage_testing(
-                    tensorize_db_record_abilities(input_list_2_secondary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-
-
-                if prediction_2_secondary > prediction_2_primary:
-                    prediction_2 = prediction_2_secondary
-                    prediction_advantage_2 = prediction_advantage_2_secondary
-                    selected_ai_2 = 'secondary'
-                else:
-                    prediction_2 = prediction_2_primary
-                    prediction_advantage_2 = prediction_advantage_2_primary
-                    selected_ai_2 = 'primary'
-
-                input_list_3_primary = [player_row[2].name, opponent_selected_fighters[2].name, player_row[2].level,
-                                        opponent_selected_fighters[2].level,
-                                        player_row[2].attributes, opponent_selected_fighters[2].attributes, player_row[2].ai_primary,
-                                        opponent_selected_fighters[2].ai_primary, 0, 0, player_row[2].ability_1, player_row[2].ability_2, player_row[2].augment, opponent_selected_fighters[2].ability_1, opponent_selected_fighters[2].ability_2, opponent_selected_fighters[2].augment]
-                input_list_3_secondary = [player_row[2].name, opponent_selected_fighters[2].name, player_row[2].level,
-                                          opponent_selected_fighters[2].level, player_row[2].attributes, opponent_selected_fighters[2].attributes,
-                                          player_row[2].ai_secondary, opponent_selected_fighters[2].ai_primary, 0, 0, player_row[2].ability_1, player_row[2].ability_2, player_row[2].augment, opponent_selected_fighters[2].ability_1, opponent_selected_fighters[2].ability_2, opponent_selected_fighters[2].augment]
-
-                prediction_3_primary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_3_primary, min_attr_value=attributes_norm_range[0], max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-                prediction_3_secondary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_3_secondary, min_attr_value=attributes_norm_range[0], max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-
-                ###########################################
-
-                prediction_advantage_3_primary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_3_primary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-                prediction_advantage_3_secondary = nn_advantage(
-                    tensorize_db_record_abilities(input_list_3_secondary, min_attr_value=attributes_norm_range[0],
-                                                  max_attr_value=attributes_norm_range[1])[:30].unsqueeze(
-                        0)).item()
-
-
-                if prediction_3_secondary > prediction_3_primary:
-                    prediction_3 = prediction_3_secondary
-                    prediction_advantage_3 = prediction_advantage_3_secondary
-                    selected_ai_3 = 'secondary'
-                else:
-                    prediction_3 = prediction_3_primary
-                    prediction_advantage_3 = prediction_advantage_3_primary
-                    selected_ai_3 = 'primary'
-
-                encounter_prediction = [prediction_1, prediction_2, prediction_3]
-                score = score_encounter_predictions(encounter_prediction)
-                if score > encounter_tracker['score']:
-                    encounter_tracker['score'] = score
-                    encounter_tracker['player_fighter_1_name'] = player_row[0].name
-                    encounter_tracker['player_fighter_1_level'] = player_row[0].level
-                    encounter_tracker['opponent_fighter_1_name'] = opponent_selected_fighters[0].name
-                    encounter_tracker['opponent_fighter_1_level'] = opponent_selected_fighters[0].level
-                    encounter_tracker['player_ai_1'] = selected_ai_1
-                    encounter_tracker['advantage_1'] = prediction_1
-
-                    encounter_tracker['player_fighter_2_name'] = player_row[1].name
-                    encounter_tracker['player_fighter_2_level'] = player_row[1].level
-                    encounter_tracker['opponent_fighter_2_name'] = opponent_selected_fighters[1].name
-                    encounter_tracker['opponent_fighter_2_level'] = opponent_selected_fighters[1].level
-                    encounter_tracker['player_ai_2'] = selected_ai_2
-                    encounter_tracker['advantage_2'] = prediction_2
-
-                    encounter_tracker['player_fighter_3_name'] = player_row[2].name
-                    encounter_tracker['player_fighter_3_level'] = player_row[2].level
-                    encounter_tracker['opponent_fighter_3_name'] = opponent_selected_fighters[2].name
-                    encounter_tracker['opponent_fighter_3_level'] = opponent_selected_fighters[2].level
-                    encounter_tracker['player_ai_3'] = selected_ai_3
-                    encounter_tracker['advantage_3'] = prediction_3
-
-                    encounter_tracker['testing_advantage_1'] = prediction_advantage_1
-                    encounter_tracker['testing_advantage_2'] = prediction_advantage_2
-                    encounter_tracker['testing_advantage_3'] = prediction_advantage_3
-
-
-            print_prediction(encounter_tracker)
-            launch_calculation_forced = False
-
 
 
         # PLAYER AI STATS PARSING ZONE
@@ -728,18 +532,12 @@ while True:
                 for f in player_fighters:
                     if f.name == current_selected_fighter:
                         f.selected_ai = 'secondary'
-                        #f.ability_1 = screen_image[418:418 + 40, 20:20 + 360]
-                        #f.ability_2 = screen_image[463:463 + 40, 20:20 + 360]
-                        #f.augment = screen_image[508:508 + 40, 20:20 + 360]
 
                         
             if similarity(screen_image[148:173, 78:250], template_ai_primary) >= 0.85:
                 for f in player_fighters:
                     if f.name == current_selected_fighter:
                         f.selected_ai = 'primary'
-                        #f.ability_1 = screen_image[418:418 + 40, 20:20 + 360]
-                        #f.ability_2 = screen_image[463:463 + 40, 20:20 + 360]
-                        #f.augment = screen_image[508:508 + 40, 20:20 + 360]
 
 
             zone_player_1 = screen_image[311:311+80, 116:116+80]
@@ -765,15 +563,6 @@ while True:
                 player_selected_fighters[2] = [f for f in player_fighters if f.name == selection_3][0]
 
                 if None not in player_selected_fighters:
-                    #player_1_abilities = cv2.vconcat([player_selected_fighters[0].ability_1, player_selected_fighters[0].ability_2, player_selected_fighters[0].augment])
-                    #player_2_abilities = cv2.vconcat([player_selected_fighters[1].ability_1, player_selected_fighters[1].ability_2, player_selected_fighters[1].augment])
-                    #player_3_abilities = cv2.vconcat([player_selected_fighters[2].ability_1, player_selected_fighters[2].ability_2, player_selected_fighters[2].augment])
-                    #player_abilities = cv2.vconcat([player_1_abilities, player_2_abilities, player_3_abilities])
-                    
-                    #opponent_1_abilities = cv2.vconcat([opponent_selected_fighters[0].ability_1, opponent_selected_fighters[0].ability_2, opponent_selected_fighters[0].augment])
-                    #opponent_2_abilities = cv2.vconcat([opponent_selected_fighters[1].ability_1, opponent_selected_fighters[1].ability_2, opponent_selected_fighters[1].augment])
-                    #opponent_3_abilities = cv2.vconcat([opponent_selected_fighters[2].ability_1, opponent_selected_fighters[2].ability_2, opponent_selected_fighters[2].augment])
-                    #opponent_abilities = cv2.vconcat([opponent_1_abilities, opponent_2_abilities, opponent_3_abilities])
 
                     print([(f.name, f.selected_ai) for f in player_selected_fighters])
 
@@ -796,7 +585,7 @@ while True:
 
         round_buffer.append(detection_zone_round_left)
         round_buffer.append(detection_zone_round_right)
-        if len(round_buffer) >= 180:
+        if len(round_buffer) >= 120:
             round_buffer.pop(0)
             round_buffer.pop(0)
 
@@ -831,7 +620,6 @@ while True:
             match_image_dict[int(time.time())] = screen_image
             unix_time = int(time.time())
             cv2.imwrite(f'history/end_screen/{unix_time}.png', screen_image)
-            #cv2.imwrite(f'history/abilities/{unix_time}.png', cv2.hconcat([player_abilities, opponent_abilities]))
             # 3 for two rounds, because we start with 1
             if round_counter == 3:
                 for fighter_1, fighter_2, advantage in zip(player_selected_fighters[:2], opponent_selected_fighters[:2], round_advantages):
