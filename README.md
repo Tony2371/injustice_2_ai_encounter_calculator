@@ -3,6 +3,10 @@ The goal of the project to achieve at least top100 rank in online AI Battle simu
 
 The project involves computer vision techniques (without neural networks) to collect game info from raw pixel data. This data is stored in the SQLite database. It includes information about fighters' levels and their AI parameters. Collected data is used to train neural network to predict match outcome based on fighter characteristics. It can also suggest how to tweak AI settings to maximize your fighting advantage in a particular encounter.
 
+**UPDATE 15.07.2023**
+This AI reached highest rank in the world! project finished.
+![Screenshot](leaderboard_07.15_1st_champion.png)
+
 Modules description:
 **classes_and_functions.py**
 Module contains classes, funtions and variables used in other modules of the project.
